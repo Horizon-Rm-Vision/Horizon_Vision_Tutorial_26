@@ -1,0 +1,1517 @@
+================================================================================
+           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M1
+================================================================================
+
+说明：
+  本任务集为2026赛季视觉组新生暑假留校期间的培训任务集，共14天。
+  今年的培训不再使用2025赛季的"M5"(Horizon_Rm_Auto_NT_M5)和2023赛季的"TRA_M1"
+  (Horizon_Rm_Vision_TRA_M1)作为教学参考程序，统一使用2026赛季最新自瞄程序
+  Horizon_Rm_Vision_26
+
+  培训采用"模块串联"设计：每天的验收产出（头文件、YAML配置、封装好的类）
+  将作为后序天数的输入直接复用。在Day12-13整合时，只需编写 main() 函数
+  按顺序调用各模块即可串成完整的自瞄Pipeline。详见附录C"模块链总览"。
+
+  已完成任务回顾（寒假 ~ 暑假前，寒假前基础期 + Training-26-1 ~ Training-26-6）：
+    【系统与工具】
+    - 实体机Ubuntu 22双系统安装、NVIDIA驱动安装、Ubuntu常用命令
+    - Git/GitHub 使用（注册、分支管理、PR、团队仓库协作）
+    - Markdown/Typora 使用
+    【环境与编译】
+    - CUDA 11.8 / CUDNN 8.9.7 / TensorRT 10.7 / OpenCV 4.10(CUDA) 安装
+    - OpenVINO 2024/2025 安装（含核显驱动与GPU加速配置）
+    - conda/miniconda 环境管理
+    - Horizon_Rm_Vision_26 全模式编译运行（TensorRT / OpenVINO / 哨兵模式）
+    【C++ 系统学习（基于黑马程序员教程）】
+    - 类与对象、继承与多态、运算符重载、I/O、异常
+    - 模板与STL入门、C++11新特性
+    - C++多线程（<thread><mutex>）、CPU亲和性绑定
+    【视觉与算法基础】
+    - Eigen入门（四元数↔旋转矩阵）
+    - yaml-cpp/json-cpp 配置读写
+    - 工业相机SDK二次开发（大恒/迈德/海康至少两种）
+    - YOLO模型训练全流程（数据集分割、训练、pt→onnx→推理）——已具备训练经验，
+    - TensorRT10 / OpenVINO C++/Python推理部署
+    - YOLO-TensorRT10-FrameWork 编译运行
+    【通信与调试】
+    - 串口通信（8字节包，union浮点数拆分，位运算字节）
+    - 自启动脚本与看门狗机制、串口自动赋权
+    - 网络调试（NoMachine, SSH, VSCode Remote）
+    【ROS2 系统学习】
+    - ROS2 Humble安装、节点/话题/服务/参数/动作
+    - 自定义msg/srv、colcon构建、Launch文件
+    - tf2坐标变换、URDF机器人建模
+    【其他】
+    - Python基础（已用Python实现C语言大作业、文件存储读取）
+    - 数据结构基础、Linux Shell编程
+    - 2025赛季RMUC/RMUL比赛观赛、RM视觉教程阅读
+
+  相比2025赛季同期新生，2026新生在以下方面已有显著领先：
+    - 神经网络模型训练和推理部署基础（已掌握YOLO全流程训练 + 双推理框架）
+      本暑假将聚焦于使用Horizon_Rm_Vision_26现有成熟模型进行推理部署和pipeline串联）
+    - ROS2（已系统学习到URDF级别，远超2025同期）
+    - C++基础（已系统学习到C++11/STL/多线程，比2025更扎实）
+  但在以下自瞄核心算法方面尚未进行学习（也是本暑假培训的重点）：
+    - 传统视觉装甲板识别（通道分离、灯条提取、装甲板匹配）
+    - 相机标定与畸变矫正
+    - 坐标系变换与PnP位姿解算
+    - 卡尔曼滤波与目标状态估计
+    - 运动预测与弹道模型
+    - 自瞄决策算法（MPC轨迹规划）
+    - 能量机关识别
+  本暑假任务将重点补全这些内容，并全面深入学习Horizon_Rm_Vision_26项目。
+
+  提交方式：在GitHub组织 Horizon-Rm-Vision-Training-26 的对应仓库中，
+  创建自己名字缩写的分支，按要求创建文件夹并提交代码/截图/文档。
+  验收方式：实机演示 + GitHub提交 + 现场问答
+
+
+================================================================================
+              配套教程项目：Horizon_Vision_Tutorial_26 
+================================================================================
+
+  本任务集配套了完整的骨架模板教程项目 Horizon_Vision_Tutorial_26，
+  教程采用"骨架模板式"（Scaffolding）教学设计，
+
+  使用方式：
+    1. 阅读本任务文档了解当天任务目标
+    2. 进入 Horizon_Vision_Tutorial_26/DayN-主题/work/
+    3. 阅读骨架代码中的 // #### Task X-Y #### 注释
+    4. 完成 TODO 标记的代码
+    5. 编译运行：mkdir build && cd build && cmake .. && make
+    6. 完成后可对照 solution/ 目录下的参考实现
+    7. 将阅读笔记、截图、流程图等图文材料放入 materials/ 目录提交
+
+  各 Day 与教程目录对应关系：
+    Day 1  → Day1-Calibration/          Day 8  → Day8-AimerShooter/
+    Day 2  → Day2-YOLO/                 Day 9  → Day9-Buff/
+    Day 3  → Day3-Traditional/          Day 10 → Day10-ROS2/
+    Day 4  → Day4-Solver/               Day 11 → Day11-Architecture/
+    Day 5  → Day5-EKF/                  Day 12 → Day12-Integration1/
+    Day 6  → Day6-Tracker/              Day 13 → Day13-Integration2/
+    Day 7  → Day7-Planner/              Day 14 → Day14-Docker/
+    （各目录下含 work/骨架代码、solution/参考实现、materials/图文材料）
+
+  关键工具脚本：
+    tools/sim_trajectory.py      —— 生成仿真轨迹数据（python3 sim_trajectory.py）
+    tools/verify_solver.py       —— 验证 Day4 PnP 解算正确性
+    tools/plot_compare.py        —— 绘制 EKF/真实轨迹对比曲线
+    Day4-Solver/python_proto/    —— PnP 坐标变换 Python 原型
+    Day5-EKF/python_proto/       —— 1D KF + 8D EKF Python 原型
+
+
+================================================================================
+                   Day 1：相机标定与畸变矫正 + Horizon_Rm_Vision_26标定工具链
+================================================================================
+
+@全体成员 新生暑假任务 Day1(自瞄组):
+
+任务要求：
+  1. 复习相机标定原理
+     复习相机成像模型中四个坐标系（世界、相机、图像、像素）的定义及其
+     转换关系；理解针孔相机模型的内参矩阵和畸变模型的含义；理解相机标定
+     的目的（获取内参矩阵和畸变系数）。
+  2. 学习Horizon_Rm_Vision_26的标定工具链
+     仔细阅读Horizon_Rm_Vision_26的 calibration/SP标定手册V2.md 文档，观看学长的现场演示，理解标定的完整
+     流程：棋盘格准备 → 内参标定所需数据采集(capture) → 相机内参标定(calibrate_camera)
+     外参标定所需数据采集(capture)→ 手眼标定(calibrate_handeye)。
+  3. 编译并运行标定工具（复用已完成相机SDK代码）
+     编译Horizon_Rm_Vision_26的标定工具，两人一组，使用实验室的某辆车完成内外参的标定，
+     记录保存得出的内外参和标定时采集的数据集
+     理解calibrate_camera，calibrate_handeye的流程
+  4. 学习OpenCV的畸变矫正API
+     编写一个简单的C++程序，读取一张棋盘格图像，使用上一步标定得到的内参
+     和畸变系数，调用cv::undistort或cv::initUndistortRectifyMap +
+     cv::remap进行畸变矫正，同时显示矫正前后的图像对比。
+  5. 保存标定参数（串联Day4）
+     将标定得到的 camera_matrix(3x3) 和 distort_coeffs(1x5) 保存为
+     my_camera_param.yaml，格式参照Horizon_Rm_Vision_26 configs/camera_param/ 下的文件。
+     Day4的Solver模块将直接加载此文件，无需重复标定。
+  6. 预习Solver模块
+     浏览 tasks/auto_aim/solver.hpp，了解Solver类的整体结构：它同时包含
+     PnP解算和完整的坐标变换链（相机→云台→IMU→世界），为Day4做准备。
+  7. 了解外参的来源——手眼标定简介（串联Day4）
+     Day1 标定了相机内参，但 Day4 Solver 的坐标变换链还需要外参
+     （R_camera2gimbal、t_camera2gimbal、R_gimbal2world）。这些外参并非
+     凭空而来，利用今日标定实操的间隙了解其原理：
+     a. R_camera2gimbal / t_camera2gimbal：来自手眼标定（Eye-in-Hand），
+        描述相机坐标系与云台坐标系的刚体变换。核心问题是求解 AX=XB，
+        其中 A 为云台运动，X 为待求的相机→云台变换，B 为相机观测到的
+        运动。详细流程见 calibration/SP标定手册V2.md。
+     b. R_gimbal2world：由 IMU 实时提供（云台姿态四元数 q），
+        在 Solver::set_R_gimbal2world(q) 中动态更新。
+     c. 如果手眼标定的外参有 0.5° 的旋转误差，
+        对 5 米外目标的 world 坐标计算会产生多大的位置偏差？
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day1-Calibration"文件夹，提交：
+     a. 采集的棋盘格图像（挑选5张代表性角度）
+     b. calibrate_camera运行终端输出的截图（显示内参矩阵和畸变系数）
+     c. 自己编写的畸变矫正程序的代码
+     d. 矫正前后对比的截图
+     e. my_camera_param.yaml（Day4将加载此文件进行PnP解算）
+     f. 任务7的c题的回答（markdown，对外参误差的定量分析）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day1-Calibration的work文件夹中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - 教程骨架模板: Horizon_Vision_Tutorial_26/Day1-Calibration/work/（骨架代码，含TODO标记）
+  - 参考实现: Horizon_Vision_Tutorial_26/Day1-Calibration/solution/（完成后对照）
+  - Horizon_Rm_Vision_26 calibration/SP标定手册V2.md（重点阅读 AX=XB 手眼标定部分）
+  - Horizon_Rm_Vision_26 tasks/auto_aim/solver.hpp（预习Solver类的整体结构）
+  - Horizon_Rm_Vision_26 configs/camera_param/（相机内参和手眼标定外参示例）
+  - 《了解CV和RoboMaster视觉组》中关于相机模型的章节
+
+
+================================================================================
+               Day 2：YOLO检测与推理框架
+================================================================================
+
+@全体成员 新生暑假任务 Day2(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26的主循环中，YOLO检测是整个算法链路的第一步：图像输入后首先经过
+  YOLO推理得到Armor列表，然后才进入Tracker进行PnP解算和EKF跟踪。因此我们
+  在完成相机标定后，先学习YOLO检测模块，理解"Armor数据从哪里来"。
+
+任务要求：
+  1. 学习Horizon_Rm_Vision_26的YOLO抽象层设计
+     阅读 tasks/auto_aim/yolo.hpp 和 yolo.cpp：
+     a. 理解YOLOBase基类的多态设计
+     b. 理解YOLO类如何通过配置文件(yaml)动态选择推理后端
+     c. 理解不同后端(yolov5_ov/yolov5_trt/yolox_ov/yolox_trt/tra)的
+        切换机制（策略模式在项目中的实际应用）
+  2. 深入学习Horizon_Rm_Vision_26的TensorRT推理框架
+     阅读并理解以下源码：
+     a. tasks/auto_aim/trt_engine.cpp / trt_engine.h —— TensorRT引擎封装
+        （engine加载、context创建、内存分配、推理执行）
+     b. tasks/auto_aim/yolos/yolov5_trt.cpp —— YOLOv5的TensorRT推理实现
+        （预处理、推理、后处理、NMS、GPU图像处理kernel）
+     c. （进阶·选读）tasks/auto_aim/yolos/yolov5_trt_gpu_kernel.cu —— CUDA kernel
+        （GPU上的图像预处理：BGR→RGB、归一化、letterbox等）
+     重点理解：
+     - TensorRT engine的加载流程（deserializeCudaEngine）
+     - 输入/输出buffer的管理（GPU内存分配和H2D/D2H传输）
+     - 预处理和后处理的pipeline
+  3. 深入学习Horizon_Rm_Vision_26的OpenVINO推理框架
+     阅读并理解：
+     a. tasks/auto_aim/yolos/yolov5_ov.cpp —— YOLOv5的OpenVINO推理实现
+     b. （可选）tasks/auto_aim/yolos/yolox_ov.cpp —— YOLOX的OpenVINO推理实现
+     重点理解：
+     - OpenVINO模型加载流程（Core→CompiledModel→InferRequest）
+     - CPU推理与GPU推理的切换（device参数："CPU"/"GPU"）
+     - 输入预处理和后处理的差异
+  4. 模型转换与推理框架实践（使用Horizon_Rm_Vision_26现有模型）
+     说明：Horizon_Rm_Vision_26 的 assets/ 目录下已提供多种
+     预训练模型（详见下方模型清单），直接使用这些模型学习推理框架的转换
+     和部署流程。
+     Horizon_Rm_Vision_26 assets/ 目录现有模型清单：
+     - yolov5a-0708.onnx（YOLOv5 自瞄检测，推荐使用）
+     - best_06_02.onnx / best_06_02.xml（OpenVINO IR格式自瞄模型）
+     - best2-sim.onnx（仿真用自瞄模型）
+     - yolox_rune_3.6m.onnx / yolox_rune_3.6m.xml（YOLOX 符识别）
+     - yolo11.xml / yolo11_buff_int8.xml（YOLO11 符识别 INT8量化）
+     - yolov5.xml / yolov8.xml（YOLOv5/v8 OpenVINO配置）
+     - lenet.onnx / tiny_resnet.onnx（轻量分类模型）
+     - 各平台的 .engine 文件（已预编译的TensorRT引擎，可直接加载推理）
+     a. 选择Horizon_Rm_Vision_26 assets/ 中的一个ONNX模型（推荐 yolov5a-0708.onnx），
+        使用trtexec将其转换为TensorRT engine格式，理解转换过程中的
+        精度选项（FP32/FP16/INT8）和优化参数
+        并使用OpenVINO的ovc工具将ONNX转换为IR格式(xml+bin)，
+        对比已有xml文件（如best_06_02.xml），理解IR格式的结构
+     b. 对比你转换的模型与Horizon_Rm_Vision_26预编译同名engine/IR文件的推理速度是否一致
+  5. 运行YOLO检测demo
+     编译并运行 auto_aim_test demo，观察YOLO检测的输出（Armor列表），
+     理解每个Armor对象的字段：points(四角点)、center、confidence、color、
+     name、type。这些字段是后续Tracker、Solver、Planner的输入。
+  6. 封装可复用检测接口（串联Day6/Day12）
+     使用Horizon_Rm_Vision_26的YOLO类加载 assets/ 中的现有模型（如 yolov5a-0708.onnx
+     对应的engine或xml），封装为一个统一的检测接口：
+     `std::list<auto_aim::Armor> detect(const cv::Mat& img)`
+     保存为 my_detector.hpp（直接用Horizon_Rm_Vision_26的YOLO类封装，加载现有模型即可）。
+     Day3的传统视觉检测器将使用相同接口，Day6的Tracker和Day12的整合
+     程序将直接 #include 此文件。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day2-YOLO"文件夹，提交：
+     a. trt_engine.cpp/h 和 yolov5_trt.cpp 的阅读笔记
+     b. yolov5_ov.cpp（或 yolox_ov.cpp）的阅读笔记
+     c. 使用Horizon_Rm_Vision_26 assets/ 中现有模型进行转换的终端截图
+        （trtexec 或 ovc 命令及输出，二选一，标注使用的是哪个模型）
+     d. yolo.cpp 中后端选择逻辑的代码流程图（文字描述即可）
+     e. auto_aim_test 运行截图，标注Armor各字段含义
+     f. my_detector.hpp（基于Horizon_Rm_Vision_26现有模型封装的检测接口，
+        Day6的Tracker和Day12的整合将复用此接口）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day2-YOLO/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - Horizon_Rm_Vision_26 tasks/auto_aim/yolo.cpp 和 yolo.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/trt_engine.cpp 和 trt_engine.h
+  - Horizon_Rm_Vision_26 tasks/auto_aim/yolos/yolov5_trt.cpp 及其GPU kernel
+  - Horizon_Rm_Vision_26 tasks/auto_aim/yolos/yolov5_ov.cpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/armor.hpp（了解Armor数据结构）
+  - TensorRT开发者指南 / OpenVINO官方文档
+  - 教程骨架模板: Horizon_Vision_Tutorial_26/Day2-YOLO/work/
+  - 参考实现: Horizon_Vision_Tutorial_26/Day2-YOLO/solution/
+
+
+================================================================================
+               Day 3：传统视觉装甲板识别——灯条检测与装甲板匹配
+================================================================================
+
+@全体成员 新生暑假任务 Day3(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，除了YOLO检测外，还有一套传统视觉检测方案（yolo_name = "tra"），
+  通过通道分离+灯条匹配实现装甲板识别。理解传统视觉有助于掌握底层图像处理
+  原理，也是YOLO检测失效时的重要备选方案。
+
+任务要求：
+  1. 学习传统视觉装甲板识别的基本流程
+     理解传统视觉装甲板识别的完整pipeline：
+     图像预处理 → 颜色提取 → 二值化 → 轮廓查找 → 灯条筛选 →
+     灯条匹配 → 装甲板数字识别。
+  2. 深入研究Horizon_Rm_Vision_26的传统视觉识别模块
+     阅读并理解以下源码：
+     a. tasks/auto_aim/detector.cpp —— 完整的传统视觉检测器
+     b. tasks/auto_aim/detector.hpp —— 检测器接口
+     c. tasks/auto_aim/yolos/traditional.cpp —— 中南LeNet传统识别器
+        （TraLight灯条类、TraArmor装甲板类、NumberClassifier数字分类器）
+     d. tasks/auto_aim/armor.hpp —— 装甲板数据结构定义
+        （Color/ArmorType/ArmorName枚举，装甲板属性表）
+     重点理解：
+     - 通道分离法（红蓝通道相减）提取颜色的思路
+     - 灯条的几何特征筛选（长宽比、斜率角度、最小长度）
+     - PCA角点修正算法（lightbar_points_corrector函数）
+     - 装甲板匹配的几何约束（灯条间距比、角度差、高度比等）
+     - 装甲板重叠时的去重逻辑
+  3. 学习装甲板匹配算法
+     a. 灯条颜色一致性检查（左右灯条必须同色）
+     b. 装甲板几何约束：灯条间距与灯条长度之比、两灯条角度差、
+        两灯条中心连线角度与灯条角度的一致性
+     c. 装甲板重叠去重逻辑（共用灯条的处理）
+  4. 学习装甲板数字识别（分类器）
+     阅读并理解：
+     a. tasks/auto_aim/classifier.cpp —— 分类器实现
+        （支持OpenCV DNN和OpenVINO两种推理方式）
+     b. 学习LeNet模型的输入预处理（get_pattern函数：提取装甲板数字区域
+        并进行仿射变换归一化）
+     理解分类器在整个识别流程中的作用：辅助确认装甲板ID，过滤误识别。
+  5. 学习Horizon_Rm_Vision_26的Voter投票机制
+     阅读 tasks/auto_aim/voter.cpp 和 voter.hpp，理解投票器如何通过
+     多帧投票机制确认装甲板的颜色、名称和类型，提高识别稳定性。
+  6. 编写一个简化的装甲板灯条检测程序
+     使用OpenCV编写C++程序（CMake编译），实现以下功能：
+     a. 读取一张RM比赛场地图片或视频帧（可使用Horizon_Rm_Vision_26仓库中的demo视频：
+        assets/demo/ 目录下的视频文件；如该目录为空，也可自行录制或从
+        RM比赛录像中截取帧）
+     b. 使用通道分离法（红蓝通道相减）提取指定颜色区域
+     c. 进行二值化和形态学操作
+     d. 查找轮廓，使用最小外接矩形筛选灯条（长宽比、角度、面积）
+     e. 将灯条匹配为装甲板，绘制装甲板外框、四角点和中心点
+     f. 提取装甲板数字区域ROI并显示
+     g. 确保输出格式与Day2一致：`std::list<Armor>`（Day12整合时可与
+        Day2的YOLO检测器互换使用，仅需修改一行 #include）
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day3-Traditional"文件夹，提交：
+     a. 传统视觉装甲板检测程序的完整代码
+     b. 使用RM比赛场地图片或视频（可使用 assets/demo/ 目录下的demo视频）
+        运行程序的截图（显示灯条和装甲板检测结果）
+     c. detector.cpp 和 traditional.cpp 的代码阅读笔记
+        （markdown格式，记录关键函数的输入输出和算法流程）
+     d. classifier.cpp 和 voter.cpp 的阅读笔记
+     e. 对装甲板匹配算法的理解总结（markdown，包含匹配条件的推导过程）
+     f. my_traditional_detector.hpp（接口与Day2的my_detector.hpp一致，
+        Day12可互换使用）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day3-Traditional/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day3-Traditional/work/（骨架代码，含TODO标记）
+  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day3-Traditional/solution/（完成后对照）
+  - Horizon_Rm_Vision_26 tasks/auto_aim/detector.cpp 和 detector.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/yolos/traditional.cpp 和 traditional.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/classifier.cpp 和 classifier.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/voter.cpp 和 voter.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/armor.hpp
+
+
+================================================================================
+                 Day 4：PnP解算与坐标变换——Solver完整模块
+================================================================================
+
+@全体成员 新生暑假任务 Day4(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，PnP解算和坐标变换不是两个独立步骤，而是Solver类的同一个
+  成员函数 solve() 的连续流程：
+    cv::solvePnP → 相机坐标 → 云台坐标(R_camera2gimbal) → 世界坐标(R_gimbal2world) → 欧拉角 → yaw优化
+  本日将Solver作为一个完整模块来学习，与Horizon_Rm_Vision_26源码结构保持一致。
+
+任务要求：
+  1. 系统学习相机成像模型与四个坐标系
+     深入理解世界坐标系、相机坐标系、图像坐标系、像素坐标系的定义和
+     相互转换关系，重点掌握：
+     a. 世界坐标 → 相机坐标：外参矩阵(R|t)
+     b. 相机坐标 → 图像坐标：针孔模型(内参矩阵K)
+     c. 图像坐标 → 像素坐标：像素尺度变换
+     d. 畸变模型：径向畸变(k1,k2,k3)和切向畸变(p1,p2)
+  2. 学习PNP算法原理与OpenCV实现
+     a. 理解PnP(Perspective-n-Point)问题：已知n个3D空间点及其在图像上
+        的2D投影点，求解相机位姿
+     b. 学习cv::solvePnP函数的参数：objectPoints, imagePoints, cameraMatrix,
+        distCoeffs, rvec, tvec, useExtrinsicGuess, flags(SOLVEPNP_IPPE等)
+     c. 理解旋转向量(rvec)→旋转矩阵→欧拉角的转换关系
+  3. 深入研究Horizon_Rm_Vision_26的Solver模块（完整流程）
+     阅读并透彻理解 tasks/auto_aim/solver.hpp 和 solver.cpp：
+     重点理解以下函数及其调用顺序：
+     a. solve(Armor & armor)：完整的PnP解算流程
+        - cv::solvePnP → tvec(rvec) → xyz_in_camera
+        - R_camera2gimbal * xyz_in_camera + t_camera2gimbal → xyz_in_gimbal
+        - R_gimbal2world * xyz_in_gimbal → xyz_in_world
+        - rvec → R_armor2camera → R_armor2gimbal → R_armor2world
+        - ypr_in_gimbal / ypr_in_world（欧拉角）
+        - ypd_in_world（yaw-pitch-distance表示）
+     b. optimize_yaw(Armor & armor)：利用装甲板重投影误差优化yaw角
+     c. armor_reprojection_error()：装甲板重投影误差计算（SJTU方法）
+     d. world2pixel()：世界坐标→像素坐标的投影
+     e. reproject_armor()：已知世界坐标反推装甲板四角点像素坐标
+     f. set_R_gimbal2world(q)：如何由IMU四元数计算云台在世界坐标系中的旋转
+  4. 编写PnP解算与坐标变换验证程序（加载Day1标定参数）
+     使用Eigen和OpenCV编写C++程序：
+     a. 加载Day1的 my_camera_param.yaml 作为相机内参（而非手动硬编码）
+     b. 手动定义一组装甲板四角点的3D世界坐标（模拟实际装甲板尺寸，
+        也可从Day2/Day3的Armor输出中取 points 字段作为2D投影点）
+     c. 使用cv::solvePnP求解相机位姿
+     d. 完成完整的坐标变换链：相机坐标 → 云台坐标 → 世界坐标
+     e. 输出旋转向量、旋转矩阵、欧拉角(yaw, pitch, roll)
+     f. 使用求得的位姿将3D点反投影到2D，计算重投影误差
+     g. 验证旋转矩阵的正交性
+     h. 将核心解算逻辑保存为 my_solver.hpp，提供接口：
+        `void solve(Armor& armor)` —— 接收Armor引用，填充 xyz_in_world 等字段
+        （Day6的Tracker将直接 #include 并调用此接口）
+     ★ 注：外参（R_camera2gimbal、t_camera2gimbal）的来源已在 Day1 任务7 中
+        学习（手眼标定 AX=XB），本日直接从 YAML 加载使用即可，无需重复。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day4-Solver"文件夹，提交：
+     a. PnP+坐标变换验证程序的代码
+     b. 程序运行结果的终端截图（显示变换链各环节的坐标和欧拉角）
+     c. solver.cpp的详细阅读笔记（markdown，逐函数分析调用链）
+     d. 使用draw.io或其他软件绘制的四个坐标系转换关系图 + 变换链完整链路图
+     e. my_solver.hpp（Day6的Tracker将引用此文件进行PnP+坐标变换）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day4-Solver/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - Horizon_Rm_Vision_26 tasks/auto_aim/solver.cpp 和 solver.hpp
+  - Horizon_Rm_Vision_26 configs/camera_param/（相机内参和手眼标定参数示例）
+  - OpenCV solvePnP官方文档
+  - 《视觉SLAM十四讲》第5讲（相机与图像）
+  - ★ 教程骨架模板: Day4-Solver/work/my_solver.hpp + solver.cpp（骨架代码）
+  - ★ Python原型: Day4-Solver/python_proto/pnp_proto.py（先用Python理解流程）
+  - ★ 验证工具: tools/verify_solver.py（自动判断PnP结果是否在容差内）
+
+
+================================================================================
+               Day 5：EKF与Target——目标状态估计
+================================================================================
+
+@全体成员 新生暑假任务 Day5(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，Tracker调用Solver获得装甲板在世界坐标系中的位置后，会将其
+  用于初始化或更新Target对象。Target内部维护一个8维EKF（扩展卡尔曼滤波器），
+  状态向量为 [x, vx, y, vy, z, vz, yaw, ω]。本日聚焦于EKF原理和Target类的
+  实现，为Day6的Tracker打下基础。
+
+任务要求：
+  1. 系统学习卡尔曼滤波原理
+     a. 理解贝叶斯滤波框架：预测 + 更新
+     b. 掌握卡尔曼滤波的五个核心公式：
+        - 状态预测：x̂_k⁻ = F·x̂_{k-1} + B·u_k
+        - 协方差预测：P_k⁻ = F·P_{k-1}·F^T + Q
+        - 卡尔曼增益：K = P_k⁻·H^T·(H·P_k⁻·H^T + R)^{-1}
+        - 状态更新：x̂_k = x̂_k⁻ + K·(z_k - H·x̂_k⁻)
+        - 协方差更新：P_k = (I - K·H)·P_k⁻
+     c. 理解过程噪声Q和观测噪声R的物理意义和调参方法
+     d. 理解扩展卡尔曼滤波(EKF)：对非线性系统进行一阶泰勒展开线性化
+  2. 深入学习Horizon_Rm_Vision_26的EKF实现
+     阅读并理解：
+     a. tools/extended_kalman_filter.hpp —— 通用EKF模板类
+        （支持自定义状态加法/减法函数、支持非线性预测和更新）
+     b. tasks/auto_aim/target.hpp —— Target类
+        （EKF状态向量设计：x, vx, y, vy, z, vz, w, r，共8维+）
+     c. tasks/auto_aim/target.cpp —— EKF的预测和更新具体实现
+        （predict函数、update函数、ypda更新方法）
+     重点理解：
+     - 状态向量的每一维分别代表什么物理量
+     - 状态转移矩阵F的设计（匀速运动模型/匀速圆周运动模型）
+     - 观测矩阵H的设计（观测值与状态向量的映射关系）
+     - convergened()收敛判断逻辑
+  3. 编写一维卡尔曼滤波演示程序
+     使用Eigen编写一个简单的一维卡尔曼滤波程序：
+     a. 生成带噪声的模拟位置观测数据（如sin曲线+高斯噪声）
+     b. 使用卡尔曼滤波对数据进行滤波
+     c. 使用matplotlib-cpp或直接将数据输出为csv，用Python/Excel绘制
+        原始数据与滤波后数据的对比曲线图
+     d. 尝试修改Q和R参数，观察滤波效果的变化并记录
+  4. 理解EKF如何串联Day4的输出（思考题，不要求代码）
+     思考以下问题并写在笔记中：
+     a. Day4的 Solver::solve() 输出了 armor.xyz_in_world（3维世界坐标），
+        如果把它作为EKF的观测值 z_k，应该设计几维的状态向量？观测矩阵H
+        应该是什么形状？
+     b. 如果要同时估计位置和速度，状态转移矩阵F应该如何设计？（参考
+        target.cpp 中匀速运动模型的F矩阵）
+     c. Horizon_Rm_Vision_26的Target类为什么要用8维状态向量（含yaw和ω）而不是只用
+        6维(x,vx,y,vy,z,vz)？多出来的两维有什么作用？
+     （此思考题帮助你从1D EKF过渡到Day6 Tracker中使用的多维EKF）
+  5. ★ 封装可复用EKF模板类（串联Day6）
+     在理解Horizon_Rm_Vision_26的 extended_kalman_filter.hpp 模板设计后，编写一个简化版的
+     多维EKF模板类 my_ekf.hpp，要求：
+     a. 支持模板参数指定状态维度 N 和观测维度 M（如 template<int N, int M>）
+     b. 实现 predict(F, Q) 和 update(z, H, R) 两个核心接口
+     c. 提供 get_state() 和 get_covariance() 用于外部读取状态
+     d. 用任务3的一维KF数据验证 your_ekf（确保与手写版本结果一致）
+     e. 将 my_ekf.hpp 保存（Day6的 my_tracker.hpp 将直接 #include 并使用
+        此EKF模板类进行目标状态估计，无需在Day6从零实现EKF）
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day5-EKF"文件夹，提交：
+     a. 一维卡尔曼滤波程序的代码
+     b. 原始数据与滤波后数据的对比曲线图（截图）
+     c. 不同Q/R参数下滤波效果的对比分析（markdown文档）
+     d. extended_kalman_filter.hpp和target.cpp的详细阅读笔记，
+        重点解释EKF的8维状态向量设计和状态转移矩阵的推导过程
+     e. 任务4的思考题回答（markdown，衔接Day4→Day6的关键思考）
+     f. my_ekf.hpp（Day6的Tracker将 #include 此文件进行目标状态估计）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day5-EKF/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - Horizon_Rm_Vision_26 tools/extended_kalman_filter.hpp 和 extended_kalman_filter.cpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/target.hpp 和 target.cpp
+  - 《卡尔曼滤波原理及应用》或网上教程
+  - https://www.bzarg.com/p/how-a-kalman-filter-works-in-pictures/
+  - ★ 教程骨架模板: Day5-EKF/work/my_ekf.hpp（EKF<N,M> 模板骨架）
+  - ★ Python原型: Day5-EKF/python_proto/kf_1d_proto.py（1D KF理解原理）
+  - ★ Python原型: Day5-EKF/python_proto/ekf_sim.py（8D EKF仿真验证）
+  - ★ 仿真工具: tools/sim_trajectory.py（生成测试数据）
+  - ★ 绘图工具: tools/plot_compare.py（对比EKF输出与真实轨迹）
+
+
+================================================================================
+                Day 6：目标跟踪(Tracker)——Solver与EKF的调度者
+================================================================================
+
+@全体成员 新生暑假任务 Day6(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，Tracker是核心调度者：它接收YOLO检测的Armor列表，调用
+  Solver::solve()进行PnP+坐标变换，调用Target(EKF)进行预测和更新，
+  并通过状态机管理跟踪生命周期。Tracker是Solver和Target的"调用者"，
+  因此在学完这两者之后再学习Tracker，形成清晰的层级关系。
+
+任务要求：
+  1. 学习Horizon_Rm_Vision_26的Tracker模块
+     阅读并透彻理解：
+     a. tasks/auto_aim/tracker.hpp —— Tracker类接口
+     b. tasks/auto_aim/tracker.cpp —— Tracker类实现
+     重点理解以下内容：
+     - Tracker持有 Solver& 和 Target 成员，负责调度它们
+     - state_machine状态机：LOST → DETECTING → TRACKING → TEMP_LOST → LOST
+       的状态切换逻辑
+     - set_target装甲板选择策略：优先级排序(priority)、马氏距离门控、
+       前哨站特殊处理
+     - set_target 中调用 solver_.solve(armor) 完成PnP+变换，
+       然后用结果初始化 Target(EKF)
+     - update_target 中调用 target_.predict(t) 预测，
+       然后对匹配的armor调用 solver_.solve(armor) + target_.update(armor)
+     - track函数的主循环：接收Armor列表→匹配现有Target→EKF预测→
+       EKF更新→状态机转换
+     - min_detect_count连续检测确认机制
+     - max_temp_lost_count短暂丢失容忍机制
+     - 前哨站(outpost)的特殊跟踪逻辑（NOVA_OUTPOST_V2机制）
+  2. 编写运动轨迹模拟与跟踪预测程序（串联Day4 Solver + Day5 EKF）
+     编写C++程序，模拟Tracker的完整工作流：
+     a. 模拟一个做匀速圆周运动的装甲板目标（生成3D位置观测数据+噪声）
+     b. ★ 直接 #include Day4 的 "my_solver.hpp" 和 Day5 的 "my_ekf.hpp"
+        （而非从零实现或使用简化模拟版本），用 my_ekf.hpp 的模板类实例化
+        一个 8 维 EKF 对目标进行跟踪
+     c. 在跟踪的基础上，实现简单的运动预测：根据当前状态估计预测
+        未来t_fly秒后目标的位置
+     d. 输出真实轨迹、观测轨迹、EKF估计轨迹和预测位置的对比数据
+     e. 使用Python/matplotlib绘制四条轨迹的对比曲线
+     f. 将核心逻辑封装为 my_tracker.hpp，提供接口：
+        `TrackResult track(const std::list<Armor>& armors)`
+        ★ 必须在 my_tracker.hpp 中明确定义 TrackResult 结构体，至少包含：
+        - xyz_in_world（Eigen::Vector3d，目标世界坐标）
+        - velocity（Eigen::Vector3d，目标世界速度，来自EKF状态）
+        - yaw（double，目标yaw角，来自EKF状态）
+        - omega（double，目标角速度，来自EKF状态）
+        - state（int，跟踪状态：LOST=0, DETECTING=1, TRACKING=2, TEMP_LOST=3）
+        - valid（bool，当前输出是否有效）
+        Day7和Day8的决策模块将直接 #include "my_tracker.hpp" 使用此结构体。
+  3. ★ 接口兼容性验证（确保模块链可串联）
+     在编写 my_tracker.hpp 之前，先执行以下验证步骤：
+     a. 创建一个简单的 test_compat.cpp，同时 #include Day4 的 "my_solver.hpp"
+        和 Day5 的 "my_ekf.hpp"，编译确保无冲突（头文件保护、命名空间等）
+     b. 确认 my_solver.hpp 的 solve(Armor&) 接口签名与你的 Tracker 调用方式
+        一致（参数类型、const 修饰、返回值类型）
+     c. 将编译通过的证据（终端截图）一并提交，确保 Day12 整合时不会因接口
+        不兼容而卡住
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day6-Tracker"文件夹，提交：
+     a. 运动轨迹模拟与跟踪预测程序的代码
+     b. 轨迹对比曲线图
+     c. tracker.cpp 的完整阅读笔记（重点分析状态机和Solver/EKF调用关系）
+     d. 画出Tracker的状态机转换图（使用draw.io等工具，拍照/导出提交）
+     e. 说明Tracker如何调度Solver和Target（markdown，含函数调用链）
+     f. my_tracker.hpp（Day12整合的核心调度者，串联Day2检测+Day4 Solver+Day5 EKF）
+     g. test_compat.cpp 的编译通过截图（验证 my_solver.hpp 与 my_ekf.hpp 可共存）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day6-Tracker/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - Horizon_Rm_Vision_26 tasks/auto_aim/tracker.cpp 和 tracker.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/target.cpp 和 target.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/solver.cpp 和 solver.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/aimer.cpp 和 aimer.hpp（浏览了解）
+  - ★ 教程骨架模板: Day6-Tracker/work/my_tracker.hpp + test_compat.cpp
+
+
+================================================================================
+              Day 7：弹道模型与MPC轨迹规划——Planner完整模块
+================================================================================
+
+@全体成员 新生暑假任务 Day7(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，Planner::plan() 函数是一个完整的决策流程：
+    弹道模型(fly_time) → 位置预测 → 瞄准点计算 → MPC参考轨迹 → MPC求解 → 输出
+  弹道模型不是独立的步骤，而是Planner内部的第一步（用于计算飞行时间以预测
+  目标未来位置）。本日将弹道模型和MPC合并为一个完整的Planner模块来学习。
+
+任务要求：
+  1. 学习弹道模型
+     阅读并理解 tools/trajectory.cpp 和 trajectory.hpp：
+     a. 无空气阻力抛物线模型(kNoDrag)：飞行时间计算、pitch角解算
+     b. 带空气阻力的英雄弹道模型(kHero)：迭代法求解（移植自华科英雄开源）
+     c. 理解弹道解算的输入(弹速v0、水平距离d、竖直高度h)和输出
+        (飞行时间fly_time、发射pitch角)
+     d. 思考：为什么弹道模型放在Planner的第一步？因为需要fly_time来
+        预测目标在子弹飞行后的位置
+  2. 学习MPC(模型预测控制)的基本概念
+     a. 理解MPC的核心思想：在每个控制周期求解一个有限时域的最优控制问题
+     b. 理解MPC与传统PID控制的区别和各自优缺点
+     c. 理解MPC的关键参数：预测时域(Horizon)、控制时域、权重矩阵Q和R
+  3. 深入学习Horizon_Rm_Vision_26的Planner模块（完整决策流程）
+     阅读并理解：
+     a. tasks/auto_aim/planner/planner.hpp —— Planner类接口
+     b. tasks/auto_aim/planner/planner.cpp —— Planner类实现
+     c. tasks/auto_aim/planner/tinympc/ —— 轻量级MPC求解器
+     按照 plan() 函数的实际调用顺序理解：
+     Step 1: 弹道模型计算fly_time → target.predict(fly_time)
+     Step 2: aim() 计算目标yaw/pitch和对应的角速度/角加速度
+     Step 3: get_trajectory() 生成MPC参考轨迹
+     Step 4: MPC求解器求解最优控制序列
+     Step 5: 输出Plan{yaw, pitch, fire, ...}
+     重点理解：
+     - yaw和pitch两个独立的MPC求解器设计
+     - Q_yaw/R_yaw和Q_pitch/R_pitch权重矩阵的调参含义
+     - fire_thresh开火阈值机制
+  4. 编写弹道+决策演示程序（联动Day6的Tracker输出）
+     编写一个简单的C++程序，模拟Planner的决策流程：
+     a. ★ 直接 #include Day6 的 "my_tracker.hpp"，使用其中定义的 TrackResult
+        结构体作为输入类型（而非自己重新定义或使用裸数组）
+     b. 构造一组模拟的 TrackResult 数据（模拟Tracker跟踪到的目标状态），
+        包含 xyz_in_world、velocity、yaw、omega 等字段
+     c. 调用弹道模型计算飞行时间 fly_time
+     d. 用匀速模型预测目标在 fly_time 后的位置
+     e. 计算目标yaw/pitch角度，输出开火判断
+     f. ★ 将核心逻辑保存为 my_planner.hpp，提供接口：
+        `Plan plan(const TrackResult& target, double bullet_speed)`
+        由于接口参数使用了 Day6 定义的 TrackResult，在 my_planner.hpp
+        中需 #include "my_tracker.hpp"（Day13整合时 my_planner.hpp 和
+        my_tracker.hpp 共同编译，无需重复定义数据结构）
+  5. 对比分析
+     对比Horizon_Rm_Vision_26的MPC Planner与2025赛季M5的简单差分+弹道补偿方案，
+     写一份简短的对比分析，说明两种方案的优缺点。
+
+  ★ 本日新增：Python 原型验证 + 渐进 Phase 机制
+    参照 Day4/5 的成功经验，本日提供：
+    - python_proto/trajectory_proto.py —— 弹道曲线可视化（输入初速/距离，
+      绘制抛物线轨迹，直观理解重力补偿）
+    - CMake Phase 2（空气阻力弹道）：实现带空气阻力的英雄弹道模型，
+      使用迭代法求解飞行时间
+    - CMake Phase 3（简化 MPC 求解器）：用 Eigen 实现一个微型 MPC 求解器，
+      输入参考轨迹→输出最优控制序列，与手算结果对比验证
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day7-Planner"文件夹，提交：
+     a. trajectory.cpp/hpp 的阅读笔记（弹道模型公式推导）
+     b. planner.cpp 和 planner.hpp 的详细阅读笔记（按 plan() 调用链组织）
+     c. MPC vs 传统决策的对比分析文档（markdown）
+     d. 手动推导MPC中yaw通道的状态空间模型（状态变量和控制量的定义、
+        状态转移方程），写在markdown中
+     e. 画出 Planner::plan() 的完整流程图（弹道→预测→瞄准→MPC→输出）
+     f. my_planner.hpp 和弹道决策演示程序代码（Day13整合的决策模块）
+     g. （Phase 2+3进阶）空气阻力弹道实现代码 + 简化MPC求解器代码
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day7-Planner/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day7-Planner/work/（骨架代码，含TODO标记）
+  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day7-Planner/solution/（完成后对照）
+  - ★ Python原型: Day7-Planner/python_proto/trajectory_proto.py（先用Python理解弹道）
+  - ★ 仿真工具: tools/sim_trajectory.py（生成仿真轨迹数据）
+  - Horizon_Rm_Vision_26 tasks/auto_aim/planner/planner.cpp 和 planner.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/planner/tinympc/
+  - Horizon_Rm_Vision_26 tools/trajectory.cpp 和 trajectory.hpp
+  - MPC原理入门教程(自行搜索)
+
+
+================================================================================
+          Day 8：Aimer+Shooter——第二种决策模式与开火控制
+================================================================================
+
+@全体成员 新生暑假任务 Day8(自瞄组):
+
+说明：
+  在Horizon_Rm_Vision_26中，除了MPC Planner模式外，还有另一套独立的决策方案——Aimer+Shooter
+  模式，对应主程序 auto_aim_debug_aimer.cpp。它与MPC模式共用YOLO检测和Tracker
+  跟踪，但在决策层分流：
+    MPC模式：Tracker → Planner(弹道+MPC) → Gimbal
+    Aimer模式：Tracker → Aimer(瞄准点选择) → Shooter(开火判断) → Gimbal
+  Aimer模式虽然比MPC简单，但包含MPC模式没有的核心技术——小陀螺判定、锁中心
+  模式、迎面/背离面选择等，是赛场上常用的成熟方案。本日聚焦于理解和实现这套
+  决策链路。
+
+任务要求：
+  1. 理解Aimer+Shooter模式的完整决策流程
+     阅读 auto_aim_debug_aimer.cpp，对比 auto_aim_debug_mpc.cpp，理解：
+     a. 两者的检测和跟踪部分完全相同（共用YOLO和Tracker）
+     b. MPC模式在Tracker后进入Planner，Aimer模式进入Aimer
+     c. Aimer模式中开火判断由Shooter独立完成，而非嵌入Planner
+  2. 深入学习Horizon_Rm_Vision_26的Aimer模块
+     阅读并理解 tasks/auto_aim/aimer.hpp 和 aimer.cpp：
+     重点理解以下函数和机制：
+     a. choose_aim_point() —— 瞄准点选择策略
+        - 根据敌方运动方向（comming_angle / leaving_angle）判断目标
+          是迎面还是背离，从而选择对应的装甲板
+        - 迎面运动→瞄准后方装甲板，背离运动→瞄准前方装甲板
+     b. 小陀螺判定逻辑
+        - gyro_speed_threshold：角速度阈值
+        - gyro_angle_threshold：角度变化阈值
+        - 当敌方旋转角速度超过阈值时，判定为小陀螺状态
+     c. 锁中心模式 (NOVA_AIM_CENTER)
+        - 当敌方高速旋转时，不再瞄准单块装甲板，而是瞄准整车旋转中心
+        - compute_facing_armor()：计算整车中心等效装甲板位置
+        - center_tracked()：锁中心状态查询
+        - check_center_fire()：锁中心模式下的开火判断
+     d. AimPoint结构体：valid标志 + xyza四维向量(位置+角度)
+  3. 深入学习Horizon_Rm_Vision_26的Shooter模块
+     阅读并理解 tasks/auto_aim/shooter.cpp 和 shooter.hpp：
+     a. 开火判断逻辑：
+        - 两层容差机制：近距离(小容差) / 远距离(大容差)
+        - judge_distance阈值切换
+     b. auto_fire模式与手动开火模式的区别
+     c. FIRE_CONSTRAINT开火约束：
+        - 云台角度约束（gimbal_yaw_threshold）
+        - 目标距离约束（target_distance_threshold）
+  4. 编写Aimer+Shooter决策程序（串联Day6 Tracker）
+     编写C++程序实现Aimer模式的决策链路：
+     a. ★ 直接 #include Day6 的 "my_tracker.hpp"，使用 TrackResult 结构体
+        作为输入，从中获取目标位置、速度和 EKF 角速度（omega 字段）
+     b. 实现简化版choose_aim_point：
+        - 计算目标速度方向与各装甲板法向量的夹角
+        - 选择夹角最小的装甲板作为瞄准点
+     c. 实现简化版小陀螺判定：
+        - 从EKF状态中读取角速度ω (ekf_x()[7])
+        - 当|ω|超过阈值时输出"gyro detected"标志
+     d. 实现简化版Shooter：
+        - 计算瞄准点yaw/pitch与当前云台角度的误差
+        - 误差在阈值内→fire=true，否则fire=false
+     e. 输出Aimer决策结果（target_yaw, target_pitch, fire），与Day7 MPC
+        输出对比，分析两种方案的差异
+     f. ★ 将核心逻辑保存为 my_aimer.hpp，提供与Day7 my_planner.hpp 相同
+        的输入接口 `AimCommand aim(const TrackResult& target, ...)`
+        同样需要 #include "my_tracker.hpp" 来使用 TrackResult 类型
+        （Day13整合时可通过配置在MPC和Aimer两种决策模式间切换）
+  5. 双模式对比实验
+     a. 使用同一组模拟TrackResult数据，分别运行MPC模式（Day7）和Aimer模式（Day8）
+     b. 对比两种模式在以下场景的表现：
+        - 匀速直线运动目标
+        - 匀速圆周运动目标（模拟小陀螺）
+     c. 记录并分析两种模式的yaw/pitch输出曲线差异
+
+  ★ 本日新增：渐进 Phase 机制
+    参照 Day4/5 的成功经验，本日 CMake 分阶段：
+    - Phase 1（基础）：瞄准点选择 + 小陀螺判定 + 开火判断
+    - Phase 2（进阶）：双模式自动切换（检测 gyro→自动切 Aimer 锁中心，
+      未检测 gyro→可选用 Planner），用 yaml 配置切换逻辑
+    - Phase 3（挑战）：使用真实 demo 视频跑通 Aimer 全流程，绘制 yaw/pitch
+      输出曲线与 Planner 对比
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day8-AimerShooter"文件夹，提交：
+     a. Aimer+Shooter决策程序的代码
+     b. aimer.cpp 和 shooter.cpp 的详细阅读笔记
+     c. 双模式对比实验的曲线截图和分析文档（markdown）
+     d. 小陀螺判定逻辑的流程图
+     e. Aimer vs Planner 的架构对比分析
+     f. my_aimer.hpp（Day13整合的可选决策模块，与my_planner.hpp并列）
+     g. （Phase 2+3进阶）双模式切换配置代码 + demo视频运行对比截图
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day8-AimerShooter/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - Horizon_Rm_Vision_26 tasks/auto_aim/aimer.cpp 和 aimer.hpp
+  - Horizon_Rm_Vision_26 tasks/auto_aim/shooter.cpp 和 shooter.hpp
+  - Horizon_Rm_Vision_26 src/auto_aim_debug_aimer.cpp（Aimer模式主程序）
+  - Horizon_Rm_Vision_26 src/auto_aim_debug_mpc.cpp（MPC模式主程序，对比参考）
+  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day8-AimerShooter/work/（骨架代码，含TODO标记）
+  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day8-AimerShooter/solution/（完成后对照）
+
+
+================================================================================
+                Day 9：能量机关识别
+================================================================================
+
+@全体成员 新生暑假任务 Day9(自瞄组):
+
+说明：
+  大符识别是Horizon_Rm_Vision_26中与自瞄并行的另一条完整流水线，其结构与自瞄类似但有其
+  特殊性。在学完自瞄的完整链路和两种决策模式后，对比学习大符流水线
+  可以加深对整体架构的理解。
+
+任务要求：
+  🛠 说明：本日 Tutorial 无骨架代码（work/ 仅含 README.md 引导文档），
+    因为大符识别主要依赖 Horizon_Rm_Vision_26 的 auto_buff 模块源码阅读和 demo 运行，
+    而非从零编写算法。请重点阅读 Horizon_Rm_Vision_26 tasks/auto_buff/ 下全部源码，
+    编译运行 auto_buff_test demo，完成阅读笔记和流程框图。
+  1. 了解RM能量机关的规则和视觉识别需求
+     a. 了解2026赛季能量机关的规则和视觉特征
+     b. 理解大符识别相比自瞄的特殊之处：
+        - 目标是符扇叶上的装甲板（待击打/已击打状态）
+        - 需要识别R标（未击打标记）来确定待击打扇叶
+        - 符按固定角速度旋转，需要预测旋转角度
+        - 需要在多块扇叶中选择正确的目标
+  2. 学习Horizon_Rm_Vision_26的auto_buff模块
+     阅读并理解以下源码结构：
+     a. tasks/auto_buff/buff_detector.cpp/hpp —— 能量机关检测器
+        （YOLO11/YOLOX检测扇叶、传统视觉检测R标）
+     b. tasks/auto_buff/buff_tracker.cpp/hpp —— 能量机关跟踪器
+        （FSM状态机、多候选+马氏距离门控、ID分配与去重）
+     c. tasks/auto_buff/buff_aimer.cpp/hpp —— 能量机关瞄准器
+     d. tasks/auto_buff/buff_solver.cpp/hpp —— 能量机关PnP解算
+     e. tasks/auto_buff/buff_target.cpp/hpp —— 能量机关目标类
+     f. tasks/auto_buff/buff_type.cpp/hpp —— 大符类型定义
+     重点理解：
+     - R标传统视觉检测方法（二值化→轮廓查找→R标特征筛选）
+     - FSM状态机的状态转换（与自瞄Tracker的区别）
+     - 多扇叶同时跟踪与ID管理
+     - 4维马氏距离匹配 + 协方差自适应门控
+  3. 运行大符demo
+     编译并运行 auto_buff_test demo程序，观察大符识别的效果，
+     了解UI上显示的各类调试信息（扇叶ID、R标位置、跟踪状态等）。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day9-Buff"文件夹，提交：
+     a. auto_buff_test 运行截图（显示大符识别效果和UI信息）
+     b. buff_detector.cpp 和 buff_tracker.cpp 的阅读笔记
+     c. 绘制大符识别流程的框图（从图像输入到最终输出目标位置）
+     d. 对比大符跟踪与自瞄跟踪(Tracker)在状态机设计上的异同（markdown）
+     e. 对比大符流水线与自瞄流水线的结构相似性（markdown）
+
+任务完成方式（二选一）：
+   方式A：参考 Horizon_Vision_Tutorial_26/Day9-Buff/work/README.md 的
+   学习指引，重点阅读 Horizon_Rm_Vision_26 源码并完成阅读笔记和流程框图，在materials文件夹提交图文材料
+   方式B：从零创建 CMake 工程，自行编写大符识别相关程序，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - ★ 教程引导: Horizon_Vision_Tutorial_26/Day9-Buff/work/README.md（本日学习指引）
+  - Horizon_Rm_Vision_26 tasks/auto_buff/ 下全部源码
+  - Horizon_Rm_Vision_26 configs/auto_buff_test.yaml
+  - RoboMaster 2026能量机关规则
+
+
+================================================================================
+               Day 10：ROS2通信集成——哨兵导航联合通信
+================================================================================
+
+@全体成员 新生暑假任务 Day10(自瞄组):
+
+背景说明：
+  大家已在寒假期间完成了ROS2 Humble的安装和系统学习（节点/话题/服务/
+  自定义msg/colcon/Launch/tf2/URDF），本日任务不再重复ROS2基础，而是
+  聚焦于Horizon_Rm_Vision_26项目中ROS2的实际应用——哨兵导航联合通信。
+
+任务要求：
+  1. 编译安装sp_msgs自定义通信包
+     a. 按照Horizon_Rm_Vision_26/sp_msgs/README.MD的两种方法（推荐CMAKE方法1），
+        编译并安装sp_msgs包到系统
+     b. 使用 ros2 interface show sp_msgs/msg/EnemyStatusMsg 和
+        ros2 interface show sp_msgs/msg/AutoaimTargetMsg 验证安装
+     c. 阅读sp_msgs/src/下的消息定义源码，理解每个字段的含义：
+        - EnemyStatusMsg：敌方状态（位置、速度、血量等）
+        - AutoaimTargetMsg：自瞄目标信息（目标位置、优先级等）
+  2. 深入理解Horizon_Rm_Vision_26的ROS2集成架构
+     阅读 io/ros2/ 下的全部源码：
+     a. ros2.cpp/hpp —— ROS2节点初始化、spin线程管理、导航速度/
+        哨兵姿态/能量机关状态等数据的订阅
+     b. publish2nav.cpp/hpp —— 向导航程序发布自瞄检测到的敌方目标
+        信息（EnemyStatusMsg）
+     c. subscribe2nav.cpp/hpp —— 从导航程序订阅信息（速度指令、
+        哨兵形态、buff状态等）
+     重点理解：
+     - 为什么ROS2在Horizon_Rm_Vision_26中是可选的（通过BUILD_SENTRY宏控制）
+     - 自瞄和导航之间的双向数据流：自瞄→导航(敌方目标位姿)，
+       导航→自瞄(速度/形态/决策指令)
+     - sp_msgs作为自定义接口在解耦两个程序中的作用
+  3. 编译哨兵模式并分析通信数据流
+     a. 使用 cmake .. -DBUILD_SENTRY=ON 编译哨兵模式
+     b. 阅读 auto_aim_debug_mpc.cpp 中 #ifdef SENTRY_SR 的代码段，
+        对比哨兵模式与普通模式在串口收发和数据处理上的区别
+     c. 画出哨兵模式下完整的数据流图：
+        导航程序 ↔ ROS2(sp_msgs) ↔ Horizon_Rm_Vision_26自瞄 ↔ 串口 ↔ 电控(下位机)
+  4. （进阶）编写ROS2测试节点
+     编写一个简单的ROS2节点，模拟导航程序：
+     a. 发布 geometry_msgs/msg/Twist 速度指令
+     b. 订阅 sp_msgs/msg/EnemyStatusMsg 敌方状态
+     c. 在终端打印收到的敌方目标信息
+     参考Horizon_Rm_Vision_26 tests/ 下的 publish_test.cpp 和 subscribe_test.cpp。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day10-ROS2"文件夹，提交：
+     a. sp_msgs编译安装成功的终端截图和ros2 interface show截图
+     b. 哨兵模式编译成功的终端截图
+     c. io/ros2/ 全部源码的阅读笔记（每个文件的函数和功能分析）
+     d. 哨兵导航联合通信的数据流图（使用draw.io绘制，标注每个环节
+        的数据格式和传输方向）
+     e. （进阶）模拟导航节点的代码和运行截图
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day10-ROS2/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+参考：
+  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day10-ROS2/work/（骨架代码，含TODO标记）
+  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day10-ROS2/solution/（完成后对照）
+  - Horizon_Rm_Vision_26/sp_msgs/README.MD
+  - Horizon_Rm_Vision_26/io/ros2/ 下全部源码
+  - Horizon_Rm_Vision_26/readme.md 中关于哨兵通信的说明
+  - Horizon_Rm_Vision_26/tests/publish_test.cpp 和 subscribe_test.cpp
+  - 大家在寒假已学过的ROS2 Tutorial（节点/话题/自定义msg/Launch等）
+
+
+================================================================================
+               Day 11：Horizon_Rm_Vision_26整体架构理解 + 调试工具链
+================================================================================
+
+@全体成员 新生暑假任务 Day11(自瞄组):
+
+说明：
+  在深入学习了Horizon_Rm_Vision_26所有核心模块后，本日从全局视角理解整个项目的架构设计，
+  并学习开发调试过程中必备的工具链。
+
+任务要求：
+  🛠 说明：本日 Tutorial 无骨架代码（work/ 仅含 README.md 引导文档），
+    因为 Day11 的核心任务是绘制架构图和阅读调试工具源码，无需编写算法。
+    请以 Horizon_Rm_Vision_26 全部源码为分析对象，使用 draw.io 完成架构图绘制。
+  1. 绘制Horizon_Rm_Vision_26的完整架构图
+     在深入学习了各模块后，为Horizon_Rm_Vision_26绘制一幅完整的软件架构图，要求：
+     a. 使用draw.io或类似工具绘制，禁止使用AI生成
+     b. 至少包含以下层次和模块：
+        - 应用层(src/)：各入口程序及其应用场景
+          (auto_aim_debug_mpc, auto_aim_debug_aimer, auto_buff_debug_mpc,
+           sentry, uav等)
+        - 任务层(tasks/)：auto_aim(Detector→Tracker→Aimer→Planner→Shooter),
+          auto_buff(BuffDetector→BuffTracker→BuffAimer→BuffSolver),
+          omniperception
+        - IO层(io/)：Camera(多种相机驱动), Gimbal(串口通信),
+          ROS2(publish2nav/subscribe2nav), CBoard(CAN通信)
+        - 工具层(tools/)：EKF, Plotter, UIManager, UIWebStream,
+          Trajectory, Recorder, RansacSineFitter, Logger, PID, CRC等
+        - 推理层(yolos/)：TensorRT(trt_engine, yolov5_trt, yolox_trt),
+          OpenVINO(yolov5_ov, yolov8, yolo11, yolox_ov),
+          Traditional(traditional.cpp/LeNet)
+        - 配置&模型层(configs/, assets/)
+     c. 标注各模块之间的数据流向（图像数据、目标数据、控制指令等的传递路径）
+     d. 标注关键数据结构（Armor, Target, GimbalState, Command等）
+     e. 标注Solver在Tracker内部的调用位置，标注Planner::plan()的完整内部流程
+  2. 学习Horizon_Rm_Vision_26的调试工具链
+     a. tools/ui_manager —— 统一UI显示（装甲板框、ROI、状态信息等）
+     b. tools/plotter —— 实时曲线绘制（PlotJuggler风格）
+     c. tools/ui_web_stream —— Web UI转发（Jetson无GUI调试方案）
+     d. tools/recorder —— 内录模式（录制视频+电控数据，离线回放）
+     e. tools/logger —— 日志系统（基于spdlog）
+     f. tools/exiter —— 安全退出机制
+     g. SPSREMU_V10.py —— 串口通信模拟器（用于无硬件调试）
+     了解每个工具的作用和使用场景，运行auto_aim_test demo体验UI和Plotter。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day11-Architecture"文件夹，提交：
+     a. Horizon_Rm_Vision_26完整架构图（draw.io源文件 + 导出PNG图片）
+     b. 架构图说明文档（对各模块的功能进行一句话概括）
+     c. 分析auto_aim_debug_mpc.cpp的main函数，画出其主循环和规划线程的
+        完整时序流程图
+
+任务完成方式（二选一）：
+   方式A：参考 Horizon_Vision_Tutorial_26/Day11-Architecture/work/README.md 的
+   学习指引，使用 draw.io 完成架构图绘制，阅读调试工具源码，在materials文件夹提交图文材料
+   方式B：从零创建 CMake 工程，自行搭建架构分析程序，但是也要使用和方式A一样的文件组织方式
+
+参考文档：
+  - ★ 教程引导: Horizon_Vision_Tutorial_26/Day11-Architecture/work/README.md（本日学习指引）
+  - Horizon_Rm_Vision_26全部源码和readme.md
+  - Horizon_Rm_Vision_26 dev_log.md（了解开发历程和各版本功能演进）
+
+
+================================================================================
+          Day 12：代码整合（上）——检测到跟踪的核心链路
+================================================================================
+
+@全体成员 新生暑假任务 Day12(自瞄组):
+
+任务要求：
+  1. ★★★ 整合培训期间编写的前半段模块（直接 #include 各天的头文件）
+     前11天你已产出以下可复用模块，今天只需编写 main() 将它们串联：
+     ┌──────────┬─────────────────────────────────────────────┐
+     │ 来源     │ 可复用文件              │ 提供的接口         │
+     ├──────────┼─────────────────────────────────────────────┤
+     │ Day1     │ my_camera_param.yaml    │ 相机内参+畸变系数  │
+     │ Day2     │ my_detector.hpp         │ detect(img)→Armors │
+     │ Day3     │ my_traditional_...hpp   │ detect(img)→Armors │(可选替换Day2)
+     │ Day4     │ my_solver.hpp           │ solve(Armor&)      │
+     │ Day5     │ my_ekf.hpp              │ EKF<N,M> 模板类    │
+     │ Day6     │ my_tracker.hpp          │ track(Armors)→TrackResult│
+     ├──────────┼─────────────────────────────────────────────┤
+     │ T-26-3   │ CAMERA-SDK/             │ 工业相机取图+调参  │(已完成任务复用)
+     │ T-26-5   │ serial/ → my_gimbal.hpp │ send(yaw,pitch,fire)│(已完成任务复用)
+     │ T-26-6   │ config/ (yaml-cpp)      │ 参数文件读写       │(已完成任务复用)
+     │ T-26-6   │ thread/ (多线程)        │ 主线程+串口线程    │(已完成任务复用)
+     └──────────┴─────────────────────────────────────────────┘
+     整合为一个程序，实现：
+     图像输入 → YOLO检测 → PnP解算 → 坐标变换 → EKF跟踪
+     伪代码（★标注为已完成任务代码复用部分）：
+     ```cpp
+     #include "my_detector.hpp"   // Day2
+     #include "my_solver.hpp"     // Day4
+     #include "my_ekf.hpp"        // Day5
+     #include "my_tracker.hpp"    // Day6
+     #include "my_gimbal.hpp"     // ★ Training-26-5 串口封装
+     #include "camera_sdk.hpp"    // ★ Training-26-3 相机SDK封装
+
+     MySolver solver("my_camera_param.yaml");  // 加载Day1的标定参数
+     MyDetector detector("config.yaml");        // Day2的检测器
+     MyTracker tracker(solver);                 // Day6的跟踪器(内部使用Day5的EKF)
+     MyGimbal gimbal("/dev/ttyUSB0");           // ★ 自己的串口通信模块
+
+     // ★ 运用 Training-26-6 多线程：串口接收线程
+     std::thread serial_thread([&]() {
+         while (running) { gimbal.receive(); }  // 接收电控云台数据
+     });
+
+     // ★ 运用 Training-26-6 yaml-cpp：从配置文件加载参数
+     Config cfg = load_yaml("my_config.yaml");  // 相机曝光、检测阈值等
+
+     while (true) {
+         camera.read(img);                      // ★ Training-26-3 相机SDK取图
+         auto armors = detector.detect(img);    // Day2: 检测
+         auto result = tracker.track(armors);   // Day6: 跟踪(内部调用Day4 Solver + Day5 EKF)
+         draw_result(img, result);
+     }
+     ```
+  2. 验证核心链路的正确性
+     a. 使用Horizon_Rm_Vision_26的demo视频作为输入
+     b. 在图像上绘制检测框、装甲板四角点、跟踪ID
+     c. 使用Plotter绘制目标的世界坐标(x,z)轨迹曲线
+     d. 验证EKF估计值是否收敛到真实观测值附近
+  3. 使用Horizon_Rm_Vision_26的调试工具增强你的程序
+     a. 引入Horizon_Rm_Vision_26的UIManager进行装甲板绘制和状态显示
+     b. 引入Plotter进行关键数据曲线绘制
+     c. 使用yaml配置文件管理所有参数
+  4. ★★★ 串联已完成的相机和串口代码（关键：打通硬件IO链路）
+     你之前在 Training-26-3 和 Training-26-5 中分别完成了工业相机SDK调用
+     程序和串口通信程序，今天将它们接入整合管线：
+     a. 相机接入：将 Training-26-3 的 "CAMERA-SDK" 代码（大恒/迈德/海康
+        相机调用 + 滑动条参数调节）作为图像输入模块，替换伪代码中的
+        `camera.read(img)`。至少支持USB/内置相机，有条件的接入工业相机。
+        —— 目标：让你的整合程序用"自己的相机代码"而非Horizon_Rm_Vision_26的camera模块取图。
+     b. 串口接入（准备）：将 Training-26-5 的 "serial" 代码（8字节包、
+        union浮点数拆分、位运算字节）封装为 my_gimbal.hpp，提供
+        `send(yaw, pitch, fire)` 接口。Day13 将直接调用此接口向"电控"发数据。
+        —— 今天先完成封装 + socat虚拟串口自测，确认收发正确。
+     c. 多线程接入：运用 Training-26-6 的多线程知识（<thread><mutex>、
+        CPU亲和性绑定），将程序拆分为：
+        - 主线程：图像采集 + 检测 + 跟踪 + UI显示
+        - 串口接收线程：接收模拟电控发来的云台角度/弹速数据
+        —— 两个线程之间使用 std::mutex + 共享变量传递数据。
+     d. 配置读取：运用 Training-26-6 的 yaml-cpp 知识，将相机参数（曝光、
+        增益等）和检测参数从 yaml 文件加载（而非硬编码），复用你之前在
+        Training-26-6 "config" 中编写的 yaml 读写代码。
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day12-Integration1"文件夹，提交：
+     a. 整合程序代码（检测→PnP→跟踪）
+     b. 程序运行截图（显示检测框、跟踪轨迹、UI信息）
+     c. Plotter曲线截图（目标x/z坐标随时间变化）
+     d. 当前阶段的问题清单和待改进点（markdown）
+     e. ★ my_gimbal.hpp 封装代码 + socat虚拟串口自测截图（任务4b）
+     f. ★ 多线程架构说明文档（线程划分、数据共享、CPU亲和性设置）（任务4c）
+     g. ★ my_config.yaml 配置文件（相机参数、检测阈值等）（任务4d）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day12-Integration1/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+注意：
+  - 今天只需完成到Tracker输出稳定目标即可，弹道和MPC留给Day13
+  - 可以使用Horizon_Rm_Vision_26的部分模块（如camera、gimbal等IO模块），但核心算法
+    部分应尽量使用自己编写的代码
+  - 如果某些模块（如YOLO）复杂度太高，可以先用Horizon_Rm_Vision_26的YOLO模块替代
+  - ★ 相机和串口代码是你在 Training-26-3/5/6 中亲手写过的，这是你
+    首次将它们串成一条完整链路——感受"自己的代码跑通端到端Pipeline"
+
+
+================================================================================
+          Day 13：代码整合（下）——预测到输出的完整Pipeline
+================================================================================
+
+@全体成员 新生暑假任务 Day13(自瞄组):
+
+任务要求：
+  1. ★★★ 在Day12基础上整合后半段模块（加入决策层头文件）
+     在Day12已串联的检测→跟踪链路之后，加入决策模块：
+     ┌──────────┬─────────────────────────────────────────────┐
+     │ 来源     │ 可复用文件              │ 提供的接口         │
+     ├──────────┼─────────────────────────────────────────────┤
+     │ Day7     │ my_planner.hpp          │ plan(TrackResult)→Plan │
+     │ Day8     │ my_aimer.hpp            │ aim(TrackResult)→AimCmd │(可选)
+     ├──────────┼─────────────────────────────────────────────┤
+     │ T-26-5   │ my_gimbal.hpp           │ send(yaw,pitch,fire)│(Day12已封装)
+     │ T-26-5   │ autostart_V1.sh 等      │ 自启动+看门狗+赋权 │(Day13新增)
+     └──────────┴─────────────────────────────────────────────┘
+     实现完整的自瞄Pipeline（MPC模式）：
+     图像输入 → YOLO检测 → PnP解算 → 坐标变换 → EKF跟踪 →
+     弹道解算 → MPC规划 → 串口输出(pitch, yaw, fire)
+     伪代码（在Day12基础上追加）：
+     ```cpp
+     #include "my_planner.hpp"   // Day7
+     // （或 #include "my_aimer.hpp" // Day8，二选一）
+     MyPlanner planner(bullet_speed);
+     while (true) {
+         // ...Day12的检测+跟踪...
+         auto result = tracker.track(armors);
+         auto plan = planner.plan(result, bullet_speed); // Day7/8: 决策
+         gimbal.send(plan.yaw, plan.pitch, plan.fire);    // ★ Training-26-5 自己的串口输出
+     }
+     ```
+  2. （进阶）整合Aimer+Shooter决策链路
+     在MPC Pipeline的基础上，增加Aimer模式切换功能：
+     a. 通过yaml配置选择MPC模式或Aimer模式
+     b. Aimer模式：Tracker → Aimer → Shooter → 串口输出
+     c. 对比两种模式在同一输入下的输出差异
+  3. 使用SPSREMU_V10.py进行模拟联调（串联自己的串口代码）
+     a. 启动SPSREMU_V10.py串口模拟器（模拟电控发送云台数据）
+     b. 连接你的程序与模拟器——注意此时使用的应是你 Training-26-5 的
+        my_gimbal.hpp（而非Horizon_Rm_Vision_26自带的gimbal模块），实现完整的数据收发闭环
+     c. 观察在不同的模拟云台数据下，程序的输出是否合理
+     d. 验证自己串口代码的8字节包格式（包头条尾、union浮点拆分、位运算字节）
+        与模拟器是否兼容，若不兼容则修正
+  4. 对比你的程序与Horizon_Rm_Vision_26
+     a. 运行Horizon_Rm_Vision_26的auto_aim_debug_mpc，对比相同输入下的输出差异
+     b. 分析差异产生的原因（算法实现细节、参数差异等）
+  5. ★ 为整合程序编写部署脚本（串联已完成的自启动+赋权知识）
+     运用 Training-26-5 中学习的自启动脚本知识，为你的整合Pipeline编写：
+     a. my_autostart.sh —— 开机自启动脚本：
+        - 自动为串口赋权（sudo chmod 666 /dev/ttyUSB* 或 udev规则）
+        - 启动你的整合程序
+        - 看门狗机制：监控程序是否运行，崩溃后自动重启
+        - 参考：Horizon_Rm_Vision_26 根目录的 autostart_V1.sh / autostart_V2.sh
+     b. my_run.sh —— 桌面双击运行脚本：
+        - 先赋权串口，再启动程序
+        - 参考：Training-26-5 中自己编写的 sh 脚本
+     c. （进阶）编写 .desktop 文件实现桌面快捷方式一键启动
+        - 参考：Horizon_Rm_Vision_26 根目录的 autostart_v1.desktop / autostart_v2.desktop
+  6. 编写开发总结文档
+     撰写一份不少于500字的暑假培训总结，包含：
+     a. 学习收获最大的3个模块及其原因
+     b. 遇到的最大困难及解决方法
+     c. 对Horizon_Rm_Vision_26项目架构设计的理解与评价
+     d. 对自己代码与Horizon_Rm_Vision_26代码的差距分析
+     e. 对后续学习方向的规划
+
+验收内容：
+  1. 在Training-26-Summer仓库自己分支下创建"Day13-Integration2"文件夹，提交：
+     a. 整合后的完整自瞄Pipeline程序代码（支持MPC+Aimer双模式）
+     b. 程序运行的截图（显示UI界面、终端输出、Plotter曲线）
+     c. 与SPSREMU联调的截图（注意：使用自己的my_gimbal.hpp串口代码）
+     d. 你的程序与Horizon_Rm_Vision_26的输出对比分析（markdown）
+     e. my_autostart.sh + my_run.sh 脚本（含看门狗和串口赋权）
+     f. 暑假培训总结文档（markdown，不少于500字）
+     g. 自评表：对照本14天任务清单，逐项自评完成度（百分比）和掌握程度
+        （理解/会用/精通）
+
+任务完成方式（二选一）：
+   方式A：使用 Horizon_Vision_Tutorial_26/Day13-Integration2/work/ 中的
+   骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
+   方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
+
+注意：
+  - 整合程序不需要达到Horizon_Rm_Vision_26的完整度，重在体现你对各模块的理解和
+    将它们串联起来的能力
+  - 核心算法部分应尽量使用自己编写的代码
+  - 如果Day12的整合还未完成，优先保证：识别→PnP→跟踪→预测→串口输出
+    这条核心链路可以跑通
+  - ★ 串口输出的 gimbal.send() 必须使用你自己 Training-26-5 编写的
+    串口通信代码（封装为 my_gimbal.hpp），而非直接复制Horizon_Rm_Vision_26的gimbal模块。
+    你已经亲手写过8字节包的拆解和组装——现在是让它们真正工作的时候。
+
+
+================================================================================
+                        Day 14：Docker入门与环境容器化
+================================================================================
+
+@全体成员 新生暑假任务 Day14(自瞄组):
+
+任务要求：
+  🛠 说明：本日 Tutorial 无骨架代码（work/ 仅含 README.md 引导文档），
+    因为 Docker 学习以实操命令和编写 Dockerfile 为主。请参考
+    Horizon_Vision_Tutorial_26/Day14-Docker/work/README.md 中的指引，
+    结合 Horizon_Rm_Vision_26 install.md 中的依赖列表完成。
+  1. Docker入门学习
+     了解Docker与虚拟机的区别、Docker的核心概念（镜像、容器、仓库、
+     Dockerfile），学习Docker的基本命令（pull, run, ps, exec, stop, rm,
+     build, images等）。
+  2. 在Ubuntu下安装Docker并配置
+     参考Docker官方文档或网络教程在实体机Ubuntu系统中安装Docker CE，
+     配置Docker用户组权限（免sudo运行docker命令），配置国内镜像加速器。
+  3. 编写Dockerfile，构建Horizon_Rm_Vision_26编译环境镜像
+     参考Horizon_Rm_Vision_26的install.md中列出的依赖项，编写一个Dockerfile，构建一个
+     包含完整Horizon_Rm_Vision_26编译依赖（OpenCV, Eigen, fmt, spdlog, yaml-cpp,
+     nlohmann-json, Ceres 2.2.0, OpenVINO 2024）的Docker镜像。
+     注意：相机SDK和CUDA等硬件相关依赖可暂不包含，重点在于学会编写
+     Dockerfile和使用Docker构建可复现的开发环境。
+  4. 在容器中编译并运行Horizon_Rm_Vision_26的demo程序
+     使用构建的镜像启动容器，挂载Horizon_Rm_Vision_26源码目录，在容器内编译并运行
+     auto_aim_test demo程序。
+
+验收内容：
+  1. 在GitHub组织Training-26-Summer仓库中创建自己名字的分支，创建名为
+     "Day14-Docker"的文件夹，提交：
+     a. 编写的Dockerfile文件
+     b. Docker构建过程的终端截图
+     c. 容器内成功编译Horizon_Rm_Vision_26的终端截图
+     d. 容器内运行auto_aim_test的截图
+     e. 用docker images和docker ps显示镜像和容器列表的截图
+
+任务完成方式（二选一）：
+   方式A：参考 Horizon_Vision_Tutorial_26/Day14-Docker/work/README.md 的
+   学习指引，完成 Docker 安装和 Horizon_Rm_Vision_26 编译环境镜像构建，在materials文件夹提交图文材料
+   方式B：从零创建 Docker 环境，完全自己编写 Dockerfile 和配置，但是也要使用和方式A一样的文件组织方式
+
+参考文档：
+  - ★ 教程引导: Horizon_Vision_Tutorial_26/Day14-Docker/work/README.md（本日学习指引）
+  - Docker官方文档: https://docs.docker.com/
+  - Horizon_Rm_Vision_26 install.md（项目根目录）
+  - Dockerfile编写指南(自行搜索)
+
+
+================================================================================
+                          暑假自主学习任务
+================================================================================
+
+以下任务在暑假剩余时间自主完成，开学后将进行综合考核，考核结果将作为
+能否继续留在实验室担任下赛季视觉负责人的重要依据。
+
+任务一：C++17/20进阶与设计模式（必修）
+  说明：大家已在寒假系统学习了C++类与对象、继承与多态、运算符重载、
+    I/O异常、模板与STL入门、C++11新特性，基础已经扎实。本任务在此之上
+    向工业级C++进阶。
+  要求：
+    - C++17/20新特性（结构化绑定、std::optional、std::variant、
+      constexpr if、折叠表达式、范围for、std::string_view等）
+    - STL进阶（智能指针unique_ptr/shared_ptr/weak_ptr的适用场景、
+      容器选择策略(map vs unordered_map、vector vs deque)、
+      lambda表达式与std::function、std::atomic原子操作）
+    - 设计模式在Horizon_Rm_Vision_26中的实际应用（策略模式→YOLO后端多态切换、
+      观察者模式→UI更新机制、工厂模式→相机驱动创建、
+      RAII资源管理→Exiter安全退出类）
+    - 阅读Horizon_Rm_Vision_26源码，学习其模块化设计、接口抽象、编译期多态等
+      工业级C++编码风格
+  验收：开学后提交一份C++进阶学习笔记，至少包含：
+    a. 5个在Horizon_Rm_Vision_26源码中发现的C++进阶用法分析（指明文件路径和行号）
+    b. 3个在Horizon_Rm_Vision_26中发现的设计模式应用分析
+    c. 对比自己之前写的代码和Horizon_Rm_Vision_26代码，列出3个可改进的编码习惯
+
+任务二：Python OpenCV视觉算法原型开发（必修）
+  说明：大家已在寒假完成了Python基础学习（已用Python实现C语言大作业+
+    文件存储读取），本任务重点是将Python应用于视觉算法开发。
+  要求：
+    - 学习numpy数组操作和matplotlib数据可视化
+    - 使用Python+OpenCV编写传统视觉装甲板识别程序（完整pipeline：
+      通道分离→二值化→形态学操作→灯条提取→装甲板匹配）
+    - 了解Python在视觉组中的实际应用场景：
+      a. 数据标注工具使用（labelImg/labelme等）
+      b. 算法快速原型验证（Python开发→验证→C++移植）
+      c. 训练脚本编写和数据分析（pandas/matplotlib）
+      d. 串口模拟器（SPSREMU_V10.py）的阅读和理解
+    - 使用Python重现暑假培训期间某个C++算法模块（如PnP解算或EKF），
+      对比两种语言的开发效率和运行效率
+  验收：提交Python版装甲板识别程序代码 + Python版算法模块代码 +
+    C++/Python开发效率对比分析文档
+
+任务三：ROS2进阶——rm_vision框架与Horizon_Rm_Vision_26集成实战（必修，自瞄组）
+  说明：大家已在寒假系统学习了ROS2（节点/话题/服务/自定义msg/colcon/
+    Launch/tf2/URDF），本任务聚焦于ROS2在RM视觉中的实际应用。
+  要求：
+    - 在自己的电脑上配置并运行 chenjunnn/rm_vision 项目
+      (GitHub开源RM视觉ROS2框架)，理解其架构设计
+    - 对比 rm_vision 与 Horizon_Rm_Vision_26 的架构差异：
+      a. rm_vision：全ROS2架构，各模块为独立ROS2节点
+      b. Horizon_Rm_Vision_26：ROS2为可选模块，核心算法不依赖ROS2
+      分析两种设计理念的优缺点
+    - 学习如何将Horizon_Rm_Vision_26的ROS2模块（io/ros2/）作为独立ROS2节点运行，
+      理解自瞄与导航解耦的设计思想
+    - （进阶）尝试为Horizon_Rm_Vision_26编写一个新的ROS2节点，实现某个调试功能
+      （如通过ROS2话题远程修改yaml参数、发布Plotter数据等）
+  验收：提交 rm_vision 运行截图 + rm_vision与Horizon_Rm_Vision_26架构对比分析文档 +
+    Horizon_Rm_Vision_26 ROS2模块分析文档
+
+任务四：YOLO模型轻量化与优化（必修）
+  要求：
+    - 学习YOLO模型的轻量化技术（剪枝、量化、知识蒸馏等）
+    - 使用Horizon_Rm_Vision_26 assets/ 中的现有模型（如 yolov5a-0708.onnx 或
+      yolo11_buff_int8.xml）进行INT8量化对比实验，理解量化原理
+    - 使用TensorRT/OpenVINO对量化前后的模型进行推理速度对比
+    - 了解模型部署到Jetson Orin等嵌入式计算平台的注意事项
+  验收：提交基于Horizon_Rm_Vision_26现有模型的量化前后推理速度对比数据和分析文档
+
+任务五：反陀螺(anti-spin)学习（必修）
+  要求：
+    - 学习各种反陀螺自瞄方案的原理
+    - 阅读Horizon_Rm_Vision_26中aimer的锁中心模式和小陀螺判定逻辑
+    - 阅读tools/ransac_sine_fitter.hpp（RANSAC正弦拟合器，用于
+      估计敌方旋转频率）
+    - 对比其他学校开源的反陀螺方案，写一份对比分析
+  验收：提交反陀螺方案对比分析文档（至少对比3种不同方案）
+
+任务六：电控与机械基础知识（必修）
+  要求：
+    - 了解云台的基本结构（yaw轴/pitch轴/发射机构）
+    - 了解电控常用的通信协议（CAN总线、串口通信）
+    - 理解电控发送给视觉的数据（云台角度、角速度、弹速、模式等）
+      各自的物理含义和用途
+    - 了解PID控制的基本概念及其在云台控制中的应用
+  验收：提交学习笔记
+
+任务七：Git进阶与团队协作（必修）
+  要求：
+    - 在暑假期间，视觉组代码仓库建立后，学习使用Git进行团队协作
+    - 掌握分支管理策略（Git Flow或GitHub Flow）
+    - 掌握代码审查(Code Review)的基本方法
+    - 了解CI/CD的基本概念
+
+================================================================================
+                              附 录
+================================================================================
+
+A. Horizon_Rm_Vision_26项目模块速查表
+
+  src/（应用入口层）
+    auto_aim_debug_mpc.cpp   —— 自瞄MPC模式主程序（主力程序）
+    auto_aim_debug_aimer.cpp —— 自瞄Aimer模式主程序（另一套决策方案）
+    auto_buff_debug_mpc.cpp  —— 大符MPC模式主程序
+    auto_buff_debug_aimer.cpp—— 大符Aimer模式主程序
+    auto_vision_mpc.cpp      —— 自瞄+大符双模式程序
+    sentry.cpp               —— 哨兵主程序
+    uav.cpp                  —— 无人机主程序
+    standard.cpp / mt_standard.cpp —— 标准/多线程步兵程序
+
+  tasks/auto_aim/（自瞄核心算法层）
+    armor.cpp/hpp      —— 装甲板数据结构（Armor, Lightbar, 枚举定义）
+    yolo.cpp/hpp       —— YOLO抽象层（多后端统一接口，流水线第一步）
+    detector.cpp/hpp   —— 传统视觉检测器（二值化→灯条→装甲板，备选方案）
+    classifier.cpp/hpp —— 数字分类器（OpenCV DNN / OpenVINO）
+    solver.cpp/hpp     —— PnP解算与坐标变换（完整变换链，在Tracker内调用）
+    tracker.cpp/hpp    —— 目标跟踪器（调度Solver+EKF，状态机管理）
+    target.cpp/hpp     —— 目标类（EKF状态估计，被Tracker持有）
+    planner/planner.cpp/hpp —— MPC轨迹规划器（弹道→预测→MPC→输出）
+    shooter.cpp/hpp    —— 开火决策器
+    aimer.cpp/hpp      —— 瞄准点选择器（Aimer模式的决策模块，非MPC流水线）
+    voter.cpp/hpp      —— 投票器（多帧确认）
+
+  tasks/auto_aim/yolos/（神经网络推理层）
+    yolov5_ov.cpp      —— YOLOv5 OpenVINO推理
+    yolov5_trt.cpp     —— YOLOv5 TensorRT推理
+    yolov8.cpp         —— YOLOv8 OpenVINO推理
+    yolo11.cpp         —— YOLO11 OpenVINO推理
+    yolox_ov.cpp       —— YOLOX OpenVINO推理
+    yolox_trt.cpp      —— YOLOX TensorRT推理
+    traditional.cpp    —— 传统视觉LeNet识别
+
+  io/（输入输出层）
+    camera.cpp/hpp     —— 相机抽象层（多态设计）
+    gimbal/gimbal.cpp/hpp —— 云台串口通信
+    daheng/            —— 大恒相机驱动
+    mindvision/        —— 迈德相机驱动
+    hikrobot/          —— 海康相机驱动
+    usbcamera/         —— USB/内置相机驱动
+    ros2/              —— ROS2通信模块
+    cboard.cpp/hpp     —— CAN通信板驱动
+
+  tools/（工具库层）
+    extended_kalman_filter —— 扩展卡尔曼滤波器
+    trajectory          —— 弹道解算（无阻力/带空气阻力）
+    ransac_sine_fitter  —— RANSAC正弦拟合（反陀螺）
+    plotter             —— 实时曲线绘制
+    ui_manager          —— 统一UI管理器
+    ui_web_stream       —— Web UI转发
+    recorder            —— 内录与回放
+    logger              —— 日志系统
+    pid                 —— PID控制器
+    crc                 —— CRC校验
+    math_tools          —— 数学工具函数
+    thread_pool         —— 线程池
+    thread_safe_queue   —— 线程安全队列
+
+  configs/（配置文件层）
+    standard3.yaml / standard4.yaml —— 步兵配置文件
+    sentry.yaml        —— 哨兵配置文件
+    uav.yaml           —— 无人机配置文件
+    demo.yaml          —— Demo测试配置
+    calibration.yaml   —— 标定工具配置
+    camera_param/      —— 相机内参和手眼标定参数
+
+B. Horizon_Rm_Vision_26自瞄MPC主循环数据流（参考）
+
+  主线程（每帧）：
+    Camera::read() → Gimbal::q() → Solver::set_R_gimbal2world(q)
+    → YOLO::detect() → Tracker::track()
+      ├─ Solver::solve()  [PnP + 坐标变换]
+      └─ Target::predict() / update()  [EKF]
+
+  规划线程（异步）：
+    Planner::plan(target, bullet_speed)
+      ├─ Trajectory(fly_time)  [弹道模型]
+      ├─ target.predict(fly_time)  [运动预测]
+      ├─ aim()  [瞄准点计算]
+      ├─ get_trajectory()  [MPC参考轨迹]
+      └─ MPC solve  [最优控制]
+    → Gimbal::send()
+
+================================================================================
+
+祝大家在暑假期间学有所成，为新赛季打下坚实的基础！
+有任何问题随时在群内提问或在GitHub上提交Issue。
+
+                                                                  Horizon 视觉组
+                                                                  2026.07.10
+
+
+================================================================================
+               D. 已完成代码复用路线图（Training-26-1 ~ Training-26-6）
+================================================================================
+
+说明：
+  本附录梳理你此前完成的 6 个 Training 仓库中产出的代码/技能，
+  与暑假 14 天任务的具体衔接点。目标：让每一行你写过的代码都在
+  暑假的端到端 Pipeline 中'活起来'。
+
+┌──────────────────┬──────────────────────────────────────────────┬──────────────────────────┐
+│ 已完成任务        │ 产出的代码/技能                              │ 暑假串联位置              │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-1    │ Git/GitHub 分支管理、PR、团队仓库协作         │ 贯穿全部暑假任务的提交    │
+│ (Git基础)        │                                              │                          │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-2    │ YOLO训练流程经验（数据集/训练/导出）        │ Day2 任务4: 用Horizon_Rm_Vision_26现有模型  │
+│ (YOLO训练+推理)  │ TensorRT / OpenVINO C++/Python推理代码       │ 学习推理框架转换与部署      │
+│                  │ YOLO-TensorRT10-FrameWork 编译运行经验         │ Day2 任务6: my_detector.hpp │
+│                  │                                              │ Day12/13: 检测模块         │
+│                  │                                              │ ★ 用Horizon_Rm_Vision_26现有模型推理     │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-3    │ 相机SDK调用程序 (大恒/迈德/海康至少两种)       │ Day1 任务3b: 标定图像采集 │
+│ (相机SDK)        │ 滑动条调节曝光/白平衡/gain/gamma              │ Day12 任务4a: 图像输入模块│
+│                  │ OpenCV + CMake 编译相机程序                    │ Day13: Pipeline取图       │
+│                  │                                              │ ★ 用自己相机代码取图     │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-4    │ Horizon_Rm_Vision_26全模式编译运行 (TensorRT/OpenVINO/哨兵)  │ Day2 任务5: demo运行      │
+│ (环境+Markdown)  │ Markdown/Typora 编写                          │ Day9: 大符demo运行        │
+│                  │                                              │ 全部阅读笔记用Markdown    │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-5    │ 串口通信程序 (8字节包/union/位运算字节)        │ Day12 任务4b: my_gimbal.hpp│
+│ (串口+自启+远程) │ 自启动脚本 + 看门狗 + 串口赋权                │ Day13 任务3: SPSREMU联调  │
+│                  │ NoMachine / SSH / VSCode Remote               │ Day13 任务5: 部署脚本     │
+│                  │                                              │ ★ 用自己的串口代码输出   │
+│                  │                                              │ ★ 用自己的脚本实现部署   │
+├──────────────────┼──────────────────────────────────────────────┼──────────────────────────┤
+│ Training-26-6    │ C++多线程程序 (thread/mutex/CPU亲和性)         │ Day12 任务4c: 主线程+串口  │
+│ (多线程+Eigen    │ Eigen 四元数↔旋转矩阵                          │ 接收线程架构              │
+│  +yaml-cpp)      │ yaml-cpp/json-cpp 配置读写程序                 │ Day4: Solver旋转矩阵验证  │
+│                  │                                              │ Day12 任务4d: my_config.yaml│
+│                  │                                              │ ★ 多线程拆分Pipeline     │
+│                  │                                              │ ★ yaml管理所有参数       │
+└──────────────────┴──────────────────────────────────────────────┴──────────────────────────┘
+
+关键串联节点（按暑假天数展开）：
+
+  Day1  ──→ Training-26-3 相机SDK: 用你的相机代码采集标定图像
+  Day2  ──→ Training-26-2 YOLO推理经验: 用Horizon_Rm_Vision_26现有模型学习推理框架部署
+  Day4  ──→ Training-26-6 Eigen: 验证旋转矩阵正交性
+  Day10 ──→ 寒假ROS2学习: 哨兵导航通信
+  Day12 ──→ Training-26-3 相机 + Training-26-5 串口 + Training-26-6 多线程+yaml
+             ★ 四合一：自己的相机取图→自己的检测→自己的跟踪→自己的串口输出准备
+  Day13 ──→ Day12全部 + Training-26-5 自启动脚本
+             ★ 五合一：完整Pipeline + 自己的串口输出 + 自己的部署脚本
+  Day14 ──→ Training-26-4 环境配置经验 → Docker容器化
+
+
+完整端到端数据流（你的代码视角）：
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ 你的Pipeline = 你的相机 + Horizon_Rm_Vision_26现有检测模型 + 你的Solver + 你的EKF  │
+  │               + 你的Tracker + 你的Planner + 你的串口 + 你的脚本    │
+  └──────────────────────────────────────────────────────────────────┘
+  图像输入 ──→ YOLO检测 ──→ PnP+坐标变换 ──→ EKF跟踪 ──→ 弹道+MPC ──→ 串口输出
+    ↑                        ↑                ↑            ↑            ↑
+  T-26-3                  T-26-2           T-26-6       Day7        T-26-5
+  相机SDK               Horizon_Rm_Vision_26现有模型       Eigen验证     my_planner   串口通信
+  (曝光/增益)           (assets/*.onnx)                  .hpp       (8字节包)
+                        (trtexec/ovc转换)                              ↓
+                                                                  T-26-5
+                                                                  autostart.sh
+                                                                  (自启+看门狗)
+
+★ 核心目标：Day13 结束时，你的整合程序从图像输入到串口输出的每一环，
+  都有你自己写过的代码参与其中。这是从"会用别人的程序"到"自己的程序能跑通"
+  的关键跨越。

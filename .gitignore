@@ -1,0 +1,33 @@
+# Build
+build/
+cmake-build-*/
+*.o
+*.obj
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Images (students add their own)
+*.jpg
+*.png
+*.bmp
+
+# Large models (reference 26_SP assets/)
+*.engine
+*.onnx
+*.xml
+*.bin
+
+# Output files
+*.csv
+output/

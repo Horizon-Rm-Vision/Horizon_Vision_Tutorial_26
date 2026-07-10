@@ -1,0 +1,105 @@
+# ================================================================
+# my_config.yaml —— Day12 整合程序配置文件
+#
+# 此文件管理整合 Pipeline 的所有可调参数。
+# 使用 Training-26-6 所学的 yaml-cpp 加载。
+#
+# Day12 的整合程序应从此文件读取参数，而非硬编码。
+# ================================================================
+
+# --- 相机参数 ---
+camera:
+  # 相机索引（USB 相机通常为 0，工业相机使用 SDK 的设备 ID）
+  index: 0
+  # 曝光时间 (us)，仅工业相机支持
+  exposure: 5000
+  # 增益 (0-100)
+  gain: 50
+  # 图像宽度
+  width: 1280
+  # 图像高度
+  height: 1024
+  # 帧率
+  fps: 60
+
+# --- 标定文件路径 ---
+calibration:
+  # Day1 标定得到的相机内参文件
+  camera_param: "my_camera_param.yaml"
+
+# --- 检测器参数 ---
+detector:
+  # 检测器类型: "yolo" 或 "traditional"
+  type: "yolo"
+  # YOLO 模型路径 (使用 26_SP assets/ 中的现有模型)
+  yolo_model: "../../assets/yolov5a-0708.onnx"
+  # YOLO 后端: "tensorrt" 或 "openvino"
+  yolo_backend: "tensorrt"
+  # 置信度阈值 (0.0 ~ 1.0)
+  conf_threshold: 0.5
+  # NMS 阈值
+  nms_threshold: 0.45
+  # 输入尺寸
+  input_width: 640
+  input_height: 640
+  # 传统视觉参数（当 type="traditional" 时使用）
+  traditional:
+    blue_threshold: 60
+    red_threshold: 60
+    min_ratio: 3.0
+    max_angle_diff: 15.0
+
+# --- 跟踪器参数 ---
+tracker:
+  # 连续检测帧数阈值（达到此帧数后进入 TRACKING 状态）
+  min_detect_count: 3
+  # 短暂丢失容忍帧数
+  max_temp_lost_count: 10
+  # EKF 过程噪声 Q（8维状态对角线）
+  ekf_q_diag: [0.01, 0.1, 0.01, 0.1, 0.01, 0.1, 0.01, 0.1]
+  # EKF 观测噪声 R（3维观测对角线）
+  ekf_r_diag: [0.01, 0.01, 0.01]
+
+# --- 决策器参数 ---
+planner:
+  # 决策模式: "mpc" 或 "aimer"
+  mode: "mpc"
+  # 子弹初速 (m/s)
+  bullet_speed: 28.0
+  # 弹道模型: "nodrag" (无空气阻力) 或 "hero" (英雄弹道)
+  trajectory_model: "nodrag"
+
+# --- 小陀螺判定参数（Aimer 模式）---
+aimer:
+  # 角速度阈值 (rad/s)，超过此值判定为小陀螺
+  gyro_speed_threshold: 3.0
+  # 开火角度误差阈值 (rad)
+  fire_angle_threshold: 0.035  # ≈ 2°
+
+# --- 串口参数 ---
+gimbal:
+  # 串口设备路径
+  device: "/dev/ttyUSB0"
+  # 波特率
+  baud_rate: 115200
+  # 无硬件时使用 Mock 模式
+  use_mock: true
+
+# --- UI/调试参数 ---
+ui:
+  # 是否显示 UI 窗口
+  show_ui: true
+  # 是否输出终端日志
+  verbose: true
+  # 是否录制视频
+  record: false
+  # 录制输出路径
+  record_path: "output.avi"
+
+# ================================================================
+# ★ 注意事项 ★
+# 1. 以上数值为默认模拟参数，实际部署时需根据你的硬件调整
+# 2. YOLO 模型路径指向 26_SP assets/ 目录，请确认路径正确
+# 3. 串口设备路径因电脑而异，使用 ls /dev/tty* 查看可用串口
+# 4. 弹速 28.0 m/s 是步兵机器人典型值，其他兵种请查规则手册
+# ================================================================
