@@ -40,10 +40,12 @@ public:
         // ============================================================
         // #### Task 5-1: 初始化状态和协方差 ##########################
         // TODO: 设置 x_ = 零向量, P_ = 大对角矩阵（表示初始不确定）
+        // 提示: StateVec::Zero(), StateMat::Identity() * 100.0
         // ============================================================
         // === 你的代码开始 ===
-        x_ = StateVec::Zero();
-        P_ = StateMat::Identity() * 100.0;
+        
+        // TODO: 初始化状态向量和协方差矩阵
+        
         // === 你的代码结束 ===
     }
 
@@ -60,8 +62,11 @@ public:
     // ================================================================
     void predict(const StateMat& F, const StateMat& Q) {
         // === 你的代码开始 ===
-        x_ = F * x_;
-        P_ = F * P_ * F.transpose() + Q;
+        // 公式 (1): x̂_k⁻ = F·x̂_{k-1}
+        // 公式 (2): P_k⁻ = F·P_{k-1}·F^T + Q
+        
+        // TODO: 实现状态预测和协方差预测
+        
         // === 你的代码结束 ===
     }
 
@@ -75,17 +80,17 @@ public:
                 const ObsMat& R) {
         // === 你的代码开始 ===
         
-        // 公式 (3): 卡尔曼增益
-        Eigen::Matrix<double, M, M> S = H * P_ * H.transpose() + R;
-        GainMat K = P_ * H.transpose() * S.inverse();
+        // 公式 (3): K = P_k⁻·H^T·(H·P_k⁻·H^T + R)^{-1}
+        // 提示: Eigen::Matrix<double, M, M> S = H * P_ * H.transpose() + R;
+        //       GainMat K = P_ * H.transpose() * S.inverse();
         
-        // 公式 (4): 状态更新
-        ObsVec y = z - H * x_;  // innovation (测量残差)
-        x_ = x_ + K * y;
+        // 公式 (4): x̂_k = x̂_k⁻ + K·(z_k - H·x̂_k⁻)
+        // 提示: ObsVec y = z - H * x_;  // innovation
+        //       x_ = x_ + K * y;
         
-        // 公式 (5): 协方差更新
-        StateMat I = StateMat::Identity();
-        P_ = (I - K * H) * P_;
+        // 公式 (5): P_k = (I - K·H)·P_k⁻
+        // 提示: StateMat I = StateMat::Identity();
+        //       P_ = (I - K * H) * P_;
         
         // === 你的代码结束 ===
     }

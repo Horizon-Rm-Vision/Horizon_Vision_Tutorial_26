@@ -67,42 +67,26 @@ public:
         }
 
         // TODO: 实现瞄准逻辑
+        // Step 1: 计算目标角度
+        //   target_yaw   = atan2(y, x)
+        //   target_pitch = atan2(z, sqrt(x²+y²))
+        //
+        // Step 2: 小陀螺判定
+        //   if |omega| > gyro_speed_threshold_ → gyro_detected = true, center_mode = true
+        //
+        // Step 3: 运动方向判断（迎面/背离）
+        //   dot(xyz, velocity) < 0 → 迎面 → yaw += π (瞄准后方装甲板)
+        //
+        // Step 4: 开火判断
+        //   |yaw_err| < 2° 且 |pitch_err| < 2° → fire = true
+        
         // === 你的代码开始 ===
         
-        // 计算目标相对于我方的角度
-        double target_yaw = std::atan2(target.xyz_in_world.y(), 
-                                       target.xyz_in_world.x());
-        double target_pitch = std::atan2(
-            target.xyz_in_world.z(),
-            std::sqrt(target.xyz_in_world.x() * target.xyz_in_world.x()
-                    + target.xyz_in_world.y() * target.xyz_in_world.y()));
         
-        // 小陀螺判定
-        if (std::abs(target.omega) > gyro_speed_threshold_) {
-            cmd.gyro_detected = true;
-            cmd.center_mode = true;
-        }
-        
-        // 运动方向判断（简化：用速度向量与位置向量的点积）
-        double dot = target.xyz_in_world.dot(target.velocity);
-        if (dot < 0) {
-            // 迎面运动：瞄准后方装甲板（调整 yaw 180°）
-            target_yaw += M_PI;
-        }
-        
-        cmd.target_yaw = target_yaw;
-        cmd.target_pitch = target_pitch;
-        
-        // 开火判断（简化：角度误差 < 2° 则开火）
-        double yaw_err = std::abs(target_yaw - current_yaw);
-        double pitch_err = std::abs(target_pitch - current_pitch);
-        const double angle_threshold = 2.0 * M_PI / 180.0;  // 2°
-        
-        cmd.fire = (yaw_err < angle_threshold) && (pitch_err < angle_threshold);
-        
-        return cmd;
         
         // === 你的代码结束 ===
+        
+        return cmd;
     }
 
 #ifdef PHASE_2_ENABLED
@@ -118,35 +102,18 @@ public:
                       double current_yaw, double current_pitch,
                       MyPlanner* planner = nullptr)
     {
-        // 自动模式判断
-        if (mode_ == DecisionMode::AUTO) {
-            if (std::abs(target.omega) > gyro_speed_threshold_) {
-                // 小陀螺 → Aimer 锁中心
-                return aim(target, current_yaw, current_pitch);
-            } else if (planner != nullptr) {
-                // 正常 → MPC Planner
-                Plan p = planner->plan(target);
-                AimCommand cmd;
-                cmd.target_yaw = p.yaw;
-                cmd.target_pitch = p.pitch;
-                cmd.fire = p.fire;
-                cmd.gyro_detected = false;
-                cmd.center_mode = false;
-                return cmd;
-            }
-        }
+        // TODO: 自动模式判断 (Phase 2)
+        //   若 mode_ == AUTO:
+        //     if |omega| > threshold → Aimer 锁中心
+        //     else if planner != nullptr → MPC Planner
+        //   若 mode_ == AIMER → 强制 Aimer
+        //   若 mode_ == MPC → 强制 Planner
         
-        // 手动模式
-        if (mode_ == DecisionMode::AIMER || planner == nullptr) {
-            return aim(target, current_yaw, current_pitch);
-        } else {
-            Plan p = planner->plan(target);
-            AimCommand cmd;
-            cmd.target_yaw = p.yaw;
-            cmd.target_pitch = p.pitch;
-            cmd.fire = p.fire;
-            return cmd;
-        }
+        // === 你的代码开始 ===
+        
+        return aim(target, current_yaw, current_pitch);
+        
+        // === 你的代码结束 ===
     }
 
     void set_mode(DecisionMode mode) { mode_ = mode; }
@@ -169,17 +136,17 @@ public:
                        double current_yaw, double current_pitch,
                        std::ofstream& csv_out)
     {
+        // TODO: 使用真实视频帧验证 Aimer (Phase 3)
+        //   1. 调用 aim() 获取 AimCommand
+        //   2. 输出到 CSV: frame_id, yaw, pitch, fire, gyro_detected
+        //   3. 用 Python/matplotlib 绘制曲线对比 Aimer vs Planner
+        
+        // === 你的代码开始 ===
+        
         auto cmd = aim(target, current_yaw, current_pitch);
-        
-        // 输出到 CSV: frame_id, yaw, pitch, fire, gyro_detected
-        static int frame_id = 0;
-        csv_out << frame_id++ << ","
-                << cmd.target_yaw << ","
-                << cmd.target_pitch << ","
-                << (cmd.fire ? 1 : 0) << ","
-                << (cmd.gyro_detected ? 1 : 0) << "\n";
-        
         return cmd.fire;
+        
+        // === 你的代码结束 ===
     }
 #endif // PHASE_3_ENABLED
 

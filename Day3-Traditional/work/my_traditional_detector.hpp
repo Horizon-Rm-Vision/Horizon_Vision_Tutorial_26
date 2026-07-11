@@ -1,22 +1,31 @@
 /**
- * Day3-Traditional/work/my_traditional_detector.hpp —— 传统视觉检测器封装
+ * Day3-Traditional/work/my_traditional_detector.hpp —— 传统视觉检测器骨架
  *
- * #### Task 3-4: 将传统视觉管线封装为统一检测接口 #################
+ * ★ 目标：仿照 26_SP tasks/auto_aim/yolos/traditional.cpp 实现传统视觉管线
  *
- * 目标：将 Day3 实现的传统视觉装甲板检测封装为与 Day2 my_detector.hpp
- *       相同接口的类，使 Day12 整合时可通过修改一行 #include 在
- *       YOLO 和传统视觉之间切换。
+ * 管线流程（对照 26_SP TraditionalDetector::detect()）：
+ *   preprocessImage() → findLights() → matchLights()
+ *   → extractNumber() + classify() → convertToArmor()
  *
- * 设计要求：
- *   - 接口与 my_detector.hpp 完全一致：detect(img) → Armor 列表
- *   - 内部实现：通道分离→二值化→灯条筛选→装甲板匹配
- *   - 支持蓝色和红色装甲板同时检测
+ * 你需要实现的核心函数（按顺序对照 26_SP）：
+ *   Task 3-1: preprocessImage()      — 灰度+二值化
+ *   Task 3-2: findLights()           — 轮廓→TraLight→isLight→判色
+ *   Task 3-3: matchLights()          — 灯条配对为装甲板
+ *   Task 3-4: detect() 管线串联      — 把所有步骤串起来
+ *   Task 3-5: extractNumber()        — 透视变换提取数字ROI (选做)
+ *   Task 3-6: classify()            — LeNet ONNX推理 (选做)
+ *   Task 3-7: eraseIgnoreClasses()   — 过滤不可信结果 (选做)
  *
- * 参考：
- *   - 26_SP tasks/auto_aim/detector.cpp / detector.hpp
- *   - 26_SP tasks/auto_aim/yolos/traditional.cpp (TraLight, TraArmor)
- *   - 26_SP tasks/auto_aim/armor.hpp (Armor 数据结构)
- *   - Day3-Traditional/work/main.cpp (你的核心算法实现)
+ * 与 Day2 my_detector.hpp 接口一致：
+ *   detect(img) → std::list<Armor>
+ *
+ * ★ 跨模块兼容：Armor/Color/ArmorType 统一定义在 include/armor_types.hpp 中，
+ *   Day2/3/4/6/12 共用同一份定义，不再依赖 #include 顺序。
+ *
+ * 参考 26_SP 源码（务必对照阅读）：
+ *   - tasks/auto_aim/yolos/traditional.hpp  (TraLight, TraArmor, NumberClassifier 声明)
+ *   - tasks/auto_aim/yolos/traditional.cpp  (完整实现)
+ *   - tasks/auto_aim/armor.hpp              (Armor 数据结构)
  */
 
 #pragma once
@@ -25,299 +34,476 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <cmath>
+#include <fstream>
+#include <string>
+#include <memory>
+#include <mutex>
 
-// 复用 Day2 的 Armor 定义（如果 my_detector.hpp 已定义则跳过）
-#ifndef ARMOR_DEFINED
+// ★ 统一引用共享的 Armor/Color/ArmorType 定义（解决跨 Day include 顺序问题）
+#include "../../include/armor_types.hpp"
+
 namespace my_auto_aim {
-struct Armor {
-    std::vector<cv::Point2f> points;
+
+// ================================================================
+// TraLight — 灯条（对照 26_SP yolos/traditional.hpp TraLight）
+//
+// 与旧版 LightBar 的区别：
+//   - 使用 Color 枚举代替 bool is_blue
+//   - 增加 axis(主轴方向), tilt_angle(偏离竖直的角度)
+//   - 构造函数从轮廓直接计算所有字段
+// ================================================================
+struct TraLight {
+    cv::RotatedRect rect;
+    Color color{Color::extinguish};
+    cv::Point2f top, bottom, center;
+    cv::Point2f axis;         // 灯条主轴方向(单位向量)
+    float length{0.0f};
+    float width{0.0f};
+    float tilt_angle{0.0f};   // 偏离竖直方向的角度(度)
+
+    TraLight() = default;
+
+    /** 从轮廓构造灯条（对照 26_SP TraLight::TraLight(contour)）*/
+    explicit TraLight(const std::vector<cv::Point>& contour) {
+        // === 你的代码开始 (Task 3-2a) ===
+        // TODO: 1. cv::minAreaRect(contour) → rect
+        // TODO: 2. 用 std::accumulate 计算中心点 center
+        // TODO: 3. rect.points(p) → 按 y 排序 → 取 top/bottom
+        // TODO: 4. length = cv::norm(top - bottom)
+        // TODO: 5. width  = cv::norm(p[0] - p[1])
+        // TODO: 6. axis = (bottom - top) / length   (单位化)
+        // TODO: 7. tilt_angle = atan2(|dx|, |dy|) * 180/PI
+        // 提示：参考 26_SP traditional.cpp TraLight 构造函数
+
+        // === 你的代码结束 ===
+    }
+};
+
+// ================================================================
+// TraArmor — 装甲板（对照 26_SP yolos/traditional.hpp TraArmor）
+// ================================================================
+struct TraArmor {
+    TraLight left_light, right_light;
     cv::Point2f center;
+    ArmorType type{ArmorType::small};
+    cv::Mat number_img;       // 28×28 二值数字图
+    std::string number{"negative"};
     float confidence{0.0f};
-    int color{0};
-    int type{0};
-    std::string name;
-};
-#define ARMOR_DEFINED
-}
-#endif
 
-namespace my_auto_aim {
+    TraArmor() = default;
 
-// ================================================================
-// 灯条结构体
-// ================================================================
-struct LightBar {
-    cv::RotatedRect rect;     // 最小外接矩形
-    cv::Point2f center;       // 中心点
-    cv::Point2f top;          // 上端点
-    cv::Point2f bottom;       // 下端点
-    float length;             // 灯条长度
-    float width;              // 灯条宽度
-    float angle;              // 倾斜角度
-    bool is_blue;             // 蓝色/红色
+    /** 从左右灯条构造装甲板（对照 26_SP TraArmor::TraArmor(l1,l2)）*/
+    TraArmor(const TraLight& l1, const TraLight& l2) {
+        // === 你的代码开始 (Task 3-3c) ===
+        // TODO: 按 x 坐标确定左右灯条
+        //       center = (left.center + right.center) / 2
+        // 提示：参考 26_SP traditional.cpp TraArmor 构造函数
+
+        // === 你的代码结束 ===
+    }
 };
 
 // ================================================================
-// #### Task 3-4: 实现 MyTraditionalDetector 类 ###################
+// Task 3-2b: isLight() — 灯条几何筛选（对照 26_SP isLight）
+//
+// 26_SP 的筛选条件（与你之前学的不同！）：
+//   - ratio = width / length，min_ratio < ratio < max_ratio
+//     (注意：是 width/length，不是 length/width！灯条细 → ratio 小)
+//   - tilt_angle < max_angle
+//
+// 典型值: min_ratio=0.05, max_ratio=0.4, max_angle=40°
+// ================================================================
+// (此函数在 MyTraditionalDetector 类中实现)
+
+// ================================================================
+// Task 3-2c: containLight() — 检查两灯条之间是否夹有其他灯条
+//              （对照 26_SP containLight）
+//
+// 思路：计算两灯条的外接矩形，检查中间是否有其他灯条的
+//       top/bottom/center 落在该矩形内
+// ================================================================
+// (此函数在 MyTraditionalDetector 类中实现)
+
+// ================================================================
+// Task 3-5 & 3-6: NumberClassifier — LeNet ONNX 数字分类器 (选做)
+// 对照 26_SP yolos/traditional.cpp NumberClassifier
+// ================================================================
+class NumberClassifier {
+public:
+    /**
+     * @param model_path     ONNX 模型路径 (如 ../assets/lenet.onnx)
+     * @param label_path     标签文件路径 (如 ../assets/label.txt)
+     * @param threshold      置信度阈值 (默认 0.7)
+     * @param ignore_classes 忽略的类别名（如 {"negative"}）
+     */
+    NumberClassifier(const std::string& model_path, const std::string& label_path,
+                     double threshold = 0.7,
+                     const std::vector<std::string>& ignore_classes = {"negative"})
+        : threshold_(threshold), ignore_classes_(ignore_classes)
+    {
+        // === 你的代码开始 (Task 3-6a: 加载模型和标签) ===
+        // TODO: 1. net_ = cv::dnn::readNetFromONNX(model_path);
+        // TODO: 2. std::ifstream 逐行读取 label_path → class_names_
+        // 提示：参考 26_SP traditional.cpp NumberClassifier 构造函数
+
+        // === 你的代码结束 ===
+    }
+
+    /**
+     * Task 3-5: 提取数字区域 ROI（对照 26_SP NumberClassifier::extractNumber）
+     *
+     * 透视变换法（与 26_SP 参数完全一致）：
+     *   源四边形: left.bottom → left.top → right.top → right.bottom
+     *   目标矩形: warp_width × 28，灯条固定 12px 高
+     *   裁剪中心 20×28 → 灰度 → OTSU → 缩放 28×28
+     *
+     * 常量（与 26_SP 完全一致）：
+     *   light_length=12, warp_height=28
+     *   small_armor_width=32, large_armor_width=54
+     *   roi_size=20×28, input_size=28×28
+     */
+    cv::Mat extractNumber(const cv::Mat& src, const TraArmor& armor) {
+        // === 你的代码开始 (Task 3-5) ===
+        // TODO: 1. 构造源四边形:
+        //          left_light.bottom → left_light.top → right_light.top → right_light.bottom
+        // TODO: 2. 根据 armor.type 选 warp_width (big→54, small→32)
+        // TODO: 3. 目标矩形: (0,bottom) → (0,top) → (w-1,top) → (w-1,bottom)
+        // TODO: 4. cv::getPerspectiveTransform + cv::warpPerspective
+        // TODO: 5. 裁剪中心 20×28 区域
+        // TODO: 6. cvtColor(RGB2GRAY) → threshold(OTSU) → resize(28×28)
+        // 提示：参考 26_SP traditional.cpp extractNumber()
+        //       注意：管线已将 BGR 转为 RGB，应使用 COLOR_RGB2GRAY
+        //       top_light_y = (warp_height - light_length) / 2 - 1
+
+        return cv::Mat();
+        // === 你的代码结束 ===
+    }
+
+    /**
+     * Task 3-6b: 分类单张数字图像（对照 26_SP NumberClassifier::classify）
+     *
+     * 流程：归一化→blobFromImage→forward→softmax→取置信度→查标签
+     *
+     * 注意事项：
+     *   - 26_SP 原版不做 softmax，这里为可解释性保留 softmax
+     *   - 26_SP 原版有 mutex_ 保证线程安全（多线程推理时需要）
+     */
+    void classify(TraArmor& armor) {
+        if (armor.number_img.empty()) {
+            armor.number = "negative";
+            armor.confidence = 0.0f;
+            return;
+        }
+
+        // === 你的代码开始 (Task 3-6b: LeNet 推理) ===
+        // TODO: 1. number_img.convertTo(input, CV_32FC1, 1.0/255.0)
+        // TODO: 2. cv::dnn::blobFromImage(input, blob)
+        // TODO: 3. (可选) mutex_.lock(); net_.setInput(blob); outputs = net_.forward().clone(); mutex_.unlock();
+        // TODO: 4. Softmax: max_val=max(outputs); exp(outputs-max_val); outputs/=sum
+        // TODO: 5. cv::minMaxLoc 取最大置信度索引 label_id
+        // TODO: 6. armor.confidence = confidence; armor.number = class_names_[label_id]
+        // 提示：参考 26_SP traditional.cpp classify()
+
+        // === 你的代码结束 ===
+    }
+
+    /**
+     * Task 3-7 (选做): 过滤低置信度和不合理类别
+     * 对照 26_SP eraseIgnoreClasses()
+     *
+     * 过滤条件:
+     *   - confidence < threshold_ → 删除
+     *   - number 属于 ignore_classes_ → 删除
+     *   - type-based: 大装甲不可能是 "outpost"/"2"/"sentry"/"base"
+     *                 小装甲不可能是 "1"
+     */
+    void eraseIgnoreClasses(std::vector<TraArmor>& armors) {
+        // === 你的代码开始 (Task 3-7) ===
+        // TODO: 用 std::remove_if 过滤不符合条件的装甲板
+        // 提示：参考 26_SP traditional.cpp eraseIgnoreClasses()
+
+        // === 你的代码结束 ===
+    }
+
+    double threshold_;
+
+private:
+    std::mutex mutex_;
+    cv::dnn::Net net_;
+    std::vector<std::string> class_names_;
+    std::vector<std::string> ignore_classes_;
+};
+
+// ================================================================
+// Task 3-4: MyTraditionalDetector — 主检测器类
+// 对照 26_SP yolos/traditional.cpp TraditionalDetector
+//
+// 你需要在此类中实现完整的管线（detect 函数串联）：
+//   preprocessImage → findLights → matchLights
+//   → extractNumber + classify → eraseIgnoreClasses → convertToArmor
 // ================================================================
 class MyTraditionalDetector {
 public:
+    /** 灯条参数（对照 26_SP LightParams）*/
+    struct LightParams {
+        float min_ratio = 0.05f;     // width/length 最小比值
+        float max_ratio = 0.4f;      // width/length 最大比值
+        float max_angle = 40.0f;     // 最大倾斜角(度)
+        int color_diff_thresh = 20;  // 颜色差分阈值
+    };
+
+    /** 装甲板参数（对照 26_SP ArmorParams）*/
+    struct ArmorParams {
+        float min_light_ratio = 0.6f;
+        float min_small_center_distance = 0.8f;
+        float max_small_center_distance = 3.5f;
+        float min_large_center_distance = 3.5f;
+        float max_large_center_distance = 8.0f;
+        float max_angle = 35.0f;
+    };
+
     /**
      * 构造函数
-     * @param blue_threshold  蓝色通道分离阈值 (默认 60)
-     * @param red_threshold   红色通道分离阈值 (默认 60)
-     * @param min_ratio       灯条最小长宽比 (默认 3.0)
-     * @param max_angle_diff  灯条配对最大角度差 (默认 15°)
+     * @param enemy_color  敌方颜色 "red" / "blue"
+     * @param binary_thres 灰度二值化阈值 (26_SP 默认 90)
+     * @param model_path   LeNet ONNX 模型路径 (选做, 可为 "")
+     * @param label_path   标签文件路径 (选做, 可为 "")
      */
-    MyTraditionalDetector(int blue_threshold = 60,
-                          int red_threshold = 60,
-                          float min_ratio = 3.0f,
-                          float max_angle_diff = 15.0f)
-        : blue_threshold_(blue_threshold)
-        , red_threshold_(red_threshold)
-        , min_ratio_(min_ratio)
-        , max_angle_diff_(max_angle_diff)
-    {}
+    MyTraditionalDetector(const std::string& enemy_color = "red",
+                          int binary_thres = 90,
+                          const std::string& model_path = "../assets/lenet.onnx",
+                          const std::string& label_path = "../assets/label.txt")
+        : binary_thres_(binary_thres)
+    {
+        // === 你的代码开始 (Task 3-4a: 构造函数) ===
+        // TODO: 1. 解析 enemy_color: "red"→Color::red, "blue"→Color::blue
+        // TODO: 2. 如果 model_path 非空，初始化 classifier_ (new NumberClassifier)
+        //         否则 classifier_ 保持 nullptr
+
+        // === 你的代码结束 ===
+    }
 
     // ============================================================
     // ★ 主检测接口（与 Day2 my_detector.hpp 接口一致）★
+    //
+    // 管线（对照 26_SP TraditionalDetector::detect()）：
+    //   1. preprocessImage   — 灰度化 + 二值化
+    //   2. findLights        — 轮廓→TraLight→isLight→判色→排序
+    //   3. matchLights       — enemy_color过滤→几何约束配对
+    //   4. extractNumber + classify (选做) — 数字识别
+    //   5. convertToArmor    — 转换为输出格式
     // ============================================================
     std::list<Armor> detect(const cv::Mat& img) {
-        std::list<Armor> results;
-        if (img.empty()) return results;
+        std::list<Armor> result;
+        if (img.empty()) return result;
 
-        // Step 1: 提取蓝色灯条
-        cv::Mat blue_gray = extract_color(img, true);
-        auto blue_bars = find_light_bars(blue_gray, true);
+        // 26_SP 内部使用 RGB，这里接口约定 BGR，内部转换即可
+        cv::Mat rgb_img;
+        cv::cvtColor(img, rgb_img, cv::COLOR_BGR2RGB);
 
-        // Step 2: 提取红色灯条
-        cv::Mat red_gray = extract_color(img, false);
-        auto red_bars = find_light_bars(red_gray, false);
+        // === 你的代码开始 (Task 3-4b: detect 管线串联) ===
 
-        // Step 3: 合并灯条
-        std::vector<LightBar> all_bars;
-        all_bars.insert(all_bars.end(), blue_bars.begin(), blue_bars.end());
-        all_bars.insert(all_bars.end(), red_bars.begin(), red_bars.end());
+        // Step 1: preprocessImage — 灰度化+二值化
+        // 提示: binary_img_ = preprocessImage(rgb_img);
 
-        // Step 4: 匹配装甲板
-        return match_armors(all_bars);
-    }
+        // Step 2: findLights — 轮廓→灯条
+        // 提示: lights_ = findLights(rgb_img, binary_img_);
 
-    // ============================================================
-    // #### Task 3-1 实现: 通道分离法颜色提取 #####################
-    //
-    // 蓝色装甲板: 蓝通道显著高于红通道
-    //   方法1 (简单): gray = B - R
-    //   方法2 (更好的抑制绿色): gray = B - 0.5*R - 0.5*G
-    //
-    // 红色装甲板: 红通道显著高于蓝通道
-    //   方法1 (简单): gray = R - B
-    //   方法2: gray = R - 0.5*B - 0.5*G
-    //
-    // 提示：两种颜色分开处理，最后合并结果。
-    //       26_SP 的 detector.cpp 也使用了相同的分离策略。
-    // ============================================================
-    cv::Mat extract_color(const cv::Mat& img, bool is_blue) {
-        // === 你的代码开始 ===
-        
-        std::vector<cv::Mat> channels;
-        cv::split(img, channels);  // B=channels[0], G=channels[1], R=channels[2]
-        
-        cv::Mat gray;
-        if (is_blue) {
-            // 蓝色: B - R (或 B - 0.5*R - 0.5*G)
-            gray = channels[0] - channels[2];
-        } else {
-            // 红色: R - B (或 R - 0.5*B - 0.5*G)
-            gray = channels[2] - channels[0];
-        }
-        
-        return gray;
-        
+        // Step 3: matchLights — 灯条→装甲板
+        // 提示: armors_ = matchLights(lights_);
+
+        // Step 4 (选做): 对每个装甲板做数字识别
+        // 提示: if (classifier_) {
+        //           for (auto& armor : armors_) {
+        //               armor.number_img = classifier_->extractNumber(rgb_img, armor);
+        //               classifier_->classify(armor);
+        //           }
+        //           classifier_->eraseIgnoreClasses(armors_);
+        //       }
+
+        // Step 5: 转换为输出格式
+        // 提示: for (const auto& tra : armors_) result.push_back(convertToArmor(tra));
+
         // === 你的代码结束 ===
+
+        return result;
     }
 
-    // ============================================================
-    // #### Task 3-2 实现: 灯条查找与筛选 #########################
-    //
-    // 流程:
-    //   1. 二值化 → cv::threshold(gray, binary, threshold, 255, THRESH_BINARY)
-    //   2. (可选) 形态学操作 → 膨胀+腐蚀去除噪点
-    //   3. 查找轮廓 → cv::findContours(binary, contours, RETR_EXTERNAL, ...)
-    //   4. 对每个轮廓 → cv::minAreaRect(contour) 求最小外接矩形
-    //   5. 按以下条件筛选灯条:
-    //      a. 面积 > 20 px² (过滤噪点)
-    //      b. 长宽比 > min_ratio_ (灯条是细长的，默认 3.0)
-    //      c. 角度合理 (灯条接近竖直方向)
-    //
-    // 参考 26_SP detector.cpp 中 find_light_bars() 的筛选逻辑。
-    // ============================================================
-    std::vector<LightBar> find_light_bars(const cv::Mat& gray, bool is_blue) {
-        // === 你的代码开始 ===
-        
-        std::vector<LightBar> bars;
-        
-        // 1. 二值化
-        int thresh = is_blue ? blue_threshold_ : red_threshold_;
-        cv::Mat binary;
-        cv::threshold(gray, binary, thresh, 255, cv::THRESH_BINARY);
-        
-        // 2. 形态学操作（可选：减少噪点）
-        cv::Mat kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::dilate(binary, binary, kernel);
-        cv::erode(binary, binary, kernel);
-        
-        // 3. 查找轮廓
-        std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(binary, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        
-        // 4-5. 筛选灯条
-        for (const auto& contour : contours) {
-            if (contour.size() < 6) continue;  // 最少6个点才能拟合矩形
-            
-            cv::RotatedRect rect = cv::minAreaRect(contour);
-            float w = rect.size.width;
-            float h = rect.size.height;
-            
-            // 确保 length >= width
-            float length = std::max(w, h);
-            float width_val = std::min(w, h);
-            
-            // 面积筛选
-            if (length * width_val < 20.0f) continue;
-            
-            // 长宽比筛选
-            if (width_val < 1e-6f || length / width_val < min_ratio_) continue;
-            
-            // 角度筛选（灯条应接近竖直）
-            float angle = rect.angle;
-            if (angle < -45.0f) angle += 90.0f;
-            if (angle > 45.0f) angle -= 90.0f;
-            if (std::abs(angle) > 45.0f) continue;
-            
-            LightBar lb;
-            lb.rect = rect;
-            lb.center = rect.center;
-            lb.length = length;
-            lb.width = width_val;
-            lb.angle = angle;
-            lb.is_blue = is_blue;
-            
-            bars.push_back(lb);
-        }
-        
-        return bars;
-        
-        // === 你的代码结束 ===
-    }
+    // ---- 参数设置接口 ----
+    void setBinaryThres(int v) { binary_thres_ = v; }
+    void setEnemyColor(const std::string& c) { detect_color_ = (c == "red") ? Color::red : Color::blue; }
+    void setLightParams(const LightParams& p) { light_params_ = p; }
+    void setArmorParams(const ArmorParams& p) { armor_params_ = p; }
 
-    // ============================================================
-    // #### Task 3-3 实现: 装甲板匹配 #############################
-    //
-    // 将灯条配对为装甲板。匹配条件（参考 26_SP detector.cpp）:
-    //
-    //   a. 颜色一致性: 左右灯条必须同色 (left.is_blue == right.is_blue)
-    //
-    //   b. 间距合理性: 两灯条中心距离与灯条平均长度之比在合理范围
-    //      ratio = distance / avg_length
-    //      0.5 < ratio < 5.0（装甲板宽度约等于灯条间距的 1~3 倍）
-    //
-    //   c. 角度一致性: 两灯条角度差 < max_angle_diff_ (默认 15°)
-    //
-    //   d. 正交性: 两灯条中心连线方向大致垂直于灯条方向
-    //      |pair_angle - lb_angle| ≈ 90°
-    //      允许偏差 ±30°
-    //
-    //   e. 高度比: 两灯条长度之比接近 1.0
-    //      0.6 < length_ratio < 1.67
-    //
-    // 提示:
-    //   - 先按 x 坐标排序灯条，减少不必要的配对尝试
-    //   - 左右灯条的判断：x 坐标较小的是左灯条
-    //   - 避免同一灯条被配对多次（去重）
-    // ============================================================
-    std::list<Armor> match_armors(const std::vector<LightBar>& bars) {
-        // === 你的代码开始 ===
-        
-        std::list<Armor> armors;
-        
-        for (size_t i = 0; i < bars.size(); i++) {
-            for (size_t j = i + 1; j < bars.size(); j++) {
-                const auto& lb1 = bars[i];
-                const auto& lb2 = bars[j];
-                
-                // a. 颜色一致性
-                if (lb1.is_blue != lb2.is_blue) continue;
-                
-                // b. 间距 vs 灯条长度
-                float dx = lb2.center.x - lb1.center.x;
-                float dy = lb2.center.y - lb1.center.y;
-                float dist = std::sqrt(dx * dx + dy * dy);
-                float avg_len = (lb1.length + lb2.length) / 2.0f;
-                if (avg_len < 1e-6f) continue;
-                float ratio = dist / avg_len;
-                if (ratio < 0.5f || ratio > 5.0f) continue;
-                
-                // c. 角度差
-                float ang_diff = std::abs(lb1.angle - lb2.angle);
-                if (ang_diff > max_angle_diff_) continue;
-                
-                // d. 正交性
-                float pair_angle = std::atan2(dy, dx) * 180.0f / CV_PI;
-                float lb_angle = (lb1.angle + lb2.angle) / 2.0f;
-                float ortho = std::abs(std::abs(pair_angle - lb_angle) - 90.0f);
-                if (ortho > 30.0f) continue;
-                
-                // e. 高度比
-                float height_ratio = lb1.length / lb2.length;
-                if (height_ratio < 0.6f || height_ratio > 1.67f) continue;
-                
-                // 配对成功
-                Armor armor;
-                armor.color = lb1.is_blue ? 0 : 1;
-                armor.confidence = 1.0f;  // 传统方法无置信度，设为 1.0
-                
-                // 确定左右灯条
-                const auto& left_bar  = (lb1.center.x < lb2.center.x) ? lb1 : lb2;
-                const auto& right_bar = (lb1.center.x < lb2.center.x) ? lb2 : lb1;
-                
-                // 计算装甲板四角点（从灯条端点推算）
-                // 简化：用左右灯条的中心构造装甲板中心
-                armor.center = cv::Point2f(
-                    (left_bar.center.x + right_bar.center.x) / 2.0f,
-                    (left_bar.center.y + right_bar.center.y) / 2.0f);
-                
-                // 用左右灯条的端点近似四角点
-                armor.points = {
-                    left_bar.center,   // 左下近似
-                    right_bar.center,  // 右下近似
-                    right_bar.center,  // 右上近似（实际需从灯条端点计算）
-                    left_bar.center,   // 左上近似
-                };
-                
-                armors.push_back(armor);
-            }
-        }
-        
-        return armors;
-        
-        // === 你的代码结束 ===
-    }
-
-    // ============================================================
-    // 参数配置（可通过构造函数或 set 方法调整）
-    // ============================================================
-    void set_blue_threshold(int v)  { blue_threshold_ = v; }
-    void set_red_threshold(int v)   { red_threshold_ = v; }
-    void set_min_ratio(float v)     { min_ratio_ = v; }
-    void set_max_angle_diff(float v){ max_angle_diff_ = v; }
+    // ---- 调试接口 ----
+    const std::vector<TraLight>& getLights() const { return lights_; }
+    const std::vector<TraArmor>& getTraArmors() const { return armors_; }
+    const cv::Mat& getBinaryImg() const { return binary_img_; }
 
 private:
-    int blue_threshold_;
-    int red_threshold_;
-    float min_ratio_;
-    float max_angle_diff_;
+    // ---- 参数 ----
+    int binary_thres_{90};
+    Color detect_color_{Color::red};
+    LightParams light_params_;
+    ArmorParams armor_params_;
+
+    // ---- 组件 ----
+    std::unique_ptr<NumberClassifier> classifier_;
+
+    // ---- 帧内状态 ----
+    cv::Mat binary_img_;     // 二值图（preprocessImage 输出，用于可视化和轮廓查找）
+    std::vector<TraLight> lights_;
+    std::vector<TraArmor> armors_;
+
+    // ============================================================
+    // Task 3-1: preprocessImage() — 灰度化 + 二值化
+    // 对照 26_SP TraditionalDetector::preprocessImage()
+    //
+    // 关键差异：26_SP 的 tra 模式不使用通道减法！
+    // 而是直接在灰度图上做统一阈值二值化，颜色判定延后到 findLights 中
+    // 通过对每个轮廓内的像素采样 B/R 通道来判色。
+    // ============================================================
+    cv::Mat preprocessImage(const cv::Mat& rgb_img) {
+        // === 你的代码开始 (Task 3-1) ===
+        // TODO: 1. cv::cvtColor(rgb_img, gray, COLOR_RGB2GRAY)
+        // TODO: 2. cv::threshold(gray, binary, binary_thres_, 255, THRESH_BINARY)
+        // TODO: 3. 返回 binary
+        // 提示：参考 26_SP traditional.cpp preprocessImage()
+
+        return cv::Mat();
+        // === 你的代码结束 ===
+    }
+
+    // ============================================================
+    // Task 3-2: findLights() — 查找灯条（对照 26_SP findLights）
+    //
+    // 完整流程：
+    //   a. cv::findContours(binary, contours, RETR_EXTERNAL, CHAIN_APPROX_NONE)
+    //   b. 遍历 contours:
+    //      - contour.size() < 6 → 跳过
+    //      - 构造 TraLight(contour)
+    //      - isLight(light) 几何筛选
+    //      - 轮廓像素采样 B/R 通道判色 → light.color
+    //   c. 按 x 坐标排序 lights
+    //
+    // 注意：26_SP 使用 CHAIN_APPROX_NONE（不是 SIMPLE！）
+    //       因为后续颜色采样需要完整的轮廓像素
+    // ============================================================
+    std::vector<TraLight> findLights(const cv::Mat& rgb_img, const cv::Mat& binary_img) {
+        // === 你的代码开始 (Task 3-2) ===
+        // TODO: 实现上述完整流程
+        // 提示：
+        //   - 遍历轮廓，构造 TraLight(contour)
+        //   - isLight(light) 检查 width/length 和 tilt_angle
+        //   - 判色：在 contour 每个点处取 rgb_img 的 R/B 值求和
+        //           sum_r > sum_b → red, 否则 blue
+        //           需满足 |sum_r - sum_b|/n > color_diff_thresh
+        //   - std::sort 按 center.x 排序
+        // 参考：26_SP traditional.cpp findLights()
+
+        return {};
+        // === 你的代码结束 ===
+    }
+
+    // ============================================================
+    // Task 3-2b: isLight() — 灯条几何筛选（对照 26_SP isLight）
+    //
+    // 条件：
+    //   - ratio = width / length ∈ (min_ratio, max_ratio)
+    //   - tilt_angle < max_angle
+    // ============================================================
+    bool isLight(const TraLight& light) {
+        // === 你的代码开始 (Task 3-2b) ===
+        // TODO: 实现上述两个条件判断
+
+        return false;
+        // === 你的代码结束 ===
+    }
+
+    // ============================================================
+    // Task 3-2c: containLight() — 检查嵌套灯条（对照 26_SP containLight）
+    //
+    // 判断 lights[i] 和 lights[j] 之间是否夹有其他灯条。
+    // 26_SP 的完整逻辑（两步筛查）：
+    //   a. 构造两灯条外接矩形: cv::boundingRect({l1.top, l1.bottom, l2.top, l2.bottom})
+    //   b. 遍历中间灯条 k∈(i,j)，先做阈值预筛:
+    //      - test_light.width  > 2 * avg_width   → continue（太宽的不是灯条）
+    //      - test_light.length < 0.5 * avg_length → continue（太短的不是灯条）
+    //   c. 检查 test_light 的 top / bottom / center 是否在 boundingRect 内
+    //      任一落在内部 → return true（存在嵌套灯条）
+    bool containLight(int i, int j, const std::vector<TraLight>& lights) {
+        // === 你的代码开始 (Task 3-2c) ===
+        // TODO: 1. 构造 pts = {l1.top, l1.bottom, l2.top, l2.bottom}
+        // TODO: 2. cv::boundingRect(pts)
+        // TODO: 3. 遍历 i+1 到 j-1，检查是否在 boundingRect 内
+        // 提示：参考 26_SP traditional.cpp containLight()
+
+        return false;
+        // === 你的代码结束 ===
+    }
+
+    // ============================================================
+    // Task 3-3: matchLights() — 灯条配对为装甲板（对照 26_SP matchLights）
+    //
+    // 约束（与 26_SP 完全一致，注意与你之前学的有所不同！）：
+    //
+    //   a. 敌方颜色过滤: light.color != detect_color_ → 跳过
+    //   b. containLight(): 中间有灯条 → 跳过
+    //   c. 水平距离裁剪: light[j].x - light[i].x > max_iter_width → break
+    //
+    //   d. 灯条长度比: min(len1,len2) / max(len1,len2) > min_light_ratio
+    //
+    //   e. 中心距归一化: center_dist / avg_length
+    //      小装甲: ∈ [min_small_center_distance, max_small_center_distance)
+    //      大装甲: ∈ [min_large_center_distance, max_large_center_distance)
+    //
+    //   f. 水平偏角: |atan(dy/dx)| * 180/PI < max_angle
+    //      (注意：26_SP 使用 atan 而非 atan2，因为灯条已按 x 排序)
+    //
+    // 配对成功后：
+    //   - 构造 TraArmor(lights[i], lights[j])
+    //   - 根据 center_dist 设置 armor.type
+    // ============================================================
+    std::vector<TraArmor> matchLights(const std::vector<TraLight>& lights) {
+        // === 你的代码开始 (Task 3-3) ===
+        // TODO: 实现上述双层循环配对逻辑
+        // 提示：
+        //   - 外层 i: 只匹配 enemy_color 的灯条
+        //   - 内层 j (i+1 开始): 同样只匹配 enemy_color
+        //   - 依次检查条件 a~f
+        //   - max_iter_width = lights[i].length * max_large_center_distance
+        //   - center_dist = cv::norm(l1.center - l2.center) / avg_len
+        //   - angle = |atan(diff.y / diff.x)| / PI * 180
+        // 参考：26_SP traditional.cpp matchLights()
+
+        return {};
+        // === 你的代码结束 ===
+    }
+
+    // ============================================================
+    // Task 3-4c: convertToArmor() — TraArmor → Armor 转换
+    // 对照 26_SP TraditionalDetector::convertToArmor()
+    //
+    // 将内部 TraArmor 转换为对外统一的 Armor 结构体
+    // 注意：Color 枚举与 26_SP 一致 (red=0, blue=1)，
+    //       直接用 static_cast<int> 转换即可
+    // ============================================================
+    Armor convertToArmor(const TraArmor& tra_armor) const {
+        // === 你的代码开始 (Task 3-4c) ===
+        // TODO: 填充 Armor 各字段
+        //   points = {right.top, left.top, left.bottom, right.bottom}
+        //   center, confidence
+        //   color = static_cast<int>(left_light.color)   // 0=红,1=蓝
+        //   type  = (tra_armor.type == ArmorType::big) ? 1 : 0
+        //   name  = tra_armor.number
+
+        return Armor{};
+        // === 你的代码结束 ===
+    }
 };
 
 } // namespace my_auto_aim
+
+

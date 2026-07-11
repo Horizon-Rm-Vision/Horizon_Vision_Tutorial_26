@@ -77,51 +77,77 @@ void compare_undistort(const std::string& image_path)
 
 // ================================================================
 // Task 1-4 参考：YAML 加载 ([任务5])
+// 兼容两种格式：扁平数组 [fx,0,cx,...]（26_SP 推荐）和嵌套 {rows,cols,data}
 // ================================================================
 struct CameraParam { cv::Mat camera_matrix; cv::Mat distort_coeffs; };
+
+namespace {
+    /// 辅助：从 YAML 节点读取数组，兼容嵌套 {rows, cols, data} 格式
+    inline std::vector<double> read_yaml_array(const YAML::Node& node)
+    {
+        if (!node) return {};
+        if (node.IsSequence()) return node.as<std::vector<double>>();
+        if (node["data"]) return node["data"].as<std::vector<double>>();
+        return {};
+    }
+}
 
 CameraParam load_camera_param(const std::string& yaml_path)
 {
     CameraParam param;
     YAML::Node config = YAML::LoadFile(yaml_path);
-    auto cm = config["camera_matrix"];
-    auto cm_data = cm["data"].as<std::vector<double>>();
-    param.camera_matrix = cv::Mat(cm["rows"].as<int>(), cm["cols"].as<int>(), CV_64F);
-    for (size_t i = 0; i < cm_data.size(); i++)
-        ((double*)param.camera_matrix.data)[i] = cm_data[i];
-    auto dc = config["distort_coeffs"];
-    auto dc_data = dc["data"].as<std::vector<double>>();
-    param.distort_coeffs = cv::Mat(dc["rows"].as<int>(), dc["cols"].as<int>(), CV_64F);
-    for (size_t i = 0; i < dc_data.size(); i++)
-        ((double*)param.distort_coeffs.data)[i] = dc_data[i];
+
+    auto cm_data = read_yaml_array(config["camera_matrix"]);
+    if (!cm_data.empty()) {
+        param.camera_matrix = cv::Mat(3, 3, CV_64F);
+        for (size_t i = 0; i < cm_data.size(); i++)
+            ((double*)param.camera_matrix.data)[i] = cm_data[i];
+    }
+
+    auto dc_data = read_yaml_array(config["distort_coeffs"]);
+    if (!dc_data.empty()) {
+        param.distort_coeffs = cv::Mat(1, 5, CV_64F);
+        for (size_t i = 0; i < dc_data.size(); i++)
+            ((double*)param.distort_coeffs.data)[i] = dc_data[i];
+    }
+
     std::cout << "[Answer] 已从 " << yaml_path << " 加载标定参数" << std::endl;
     return param;
 }
 
 // ================================================================
 // Task 1-5 参考：YAML 保存 ([任务5])
+//
+// ★ 输出格式：扁平数组（与 26_SP configs/camera_param/ 完全一致）
+//   camera_matrix: [fx, 0, cx, 0, fy, cy, 0, 0, 1]
+//   distort_coeffs: [k1, k2, p1, p2, k3]
+//
+// Day4 Solver 的 load_camera_param() 同时兼容此扁平格式和旧版嵌套格式
 // ================================================================
 void save_camera_param(const std::string& yaml_path,
                         const cv::Mat& cm, const cv::Mat& dc)
 {
     YAML::Emitter out;
     out << YAML::BeginMap;
-    out << YAML::Key << "camera_matrix" << YAML::Value << YAML::BeginMap;
-    out << YAML::Key << "rows" << YAML::Value << cm.rows;
-    out << YAML::Key << "cols" << YAML::Value << cm.cols;
-    out << YAML::Key << "data" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+
+    // camera_matrix: 扁平数组（与 26_SP 一致）
+    out << YAML::Key << "camera_matrix" << YAML::Value
+        << YAML::Flow << YAML::BeginSeq;
     for (int i = 0; i < cm.rows * cm.cols; i++)
         out << ((double*)cm.data)[i];
-    out << YAML::EndSeq << YAML::EndMap;
-    out << YAML::Key << "distort_coeffs" << YAML::Value << YAML::BeginMap;
-    out << YAML::Key << "rows" << YAML::Value << dc.rows;
-    out << YAML::Key << "cols" << YAML::Value << dc.cols;
-    out << YAML::Key << "data" << YAML::Value << YAML::Flow << YAML::BeginSeq;
+    out << YAML::EndSeq;
+
+    // distort_coeffs: 扁平数组（与 26_SP 一致）
+    out << YAML::Key << "distort_coeffs" << YAML::Value
+        << YAML::Flow << YAML::BeginSeq;
     for (int i = 0; i < dc.rows * dc.cols; i++)
         out << ((double*)dc.data)[i];
-    out << YAML::EndSeq << YAML::EndMap << YAML::EndMap;
+    out << YAML::EndSeq;
+
+    out << YAML::EndMap;
     std::ofstream fout(yaml_path); fout << out.c_str(); fout.close();
-    std::cout << "[Answer] 已保存到 " << yaml_path << std::endl;
+    std::cout << "[Answer] 已保存到 " << yaml_path
+              << " (格式: 扁平数组, 与 26_SP 一致)" << std::endl;
 }
 
 // ================================================================

@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(OpenCV REQUIRED)
 
 # ================================================================
-# Day3 传统视觉装甲板识别
+# Day3 传统视觉装甲板识别 — 参考实现
 #
 # 完整管线（对照 26_SP yolos/traditional.cpp）：
 #   灰度二值化 → 轮廓查找 → 灯条筛选(isLight) → 颜色判定(轮廓采样)
@@ -27,4 +27,3 @@ find_package(OpenCV REQUIRED)
 # ================================================================
 add_executable(my_traditional_detector main.cpp)
 target_link_libraries(my_traditional_detector ${OpenCV_LIBS})
-

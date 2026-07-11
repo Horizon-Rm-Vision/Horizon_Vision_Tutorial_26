@@ -199,7 +199,7 @@
   3. 深入学习Horizon_Rm_Vision_26的OpenVINO推理框架
      阅读并理解：
      a. tasks/auto_aim/yolos/yolov5_ov.cpp —— YOLOv5的OpenVINO推理实现
-     b. （可选）tasks/auto_aim/yolos/yolox_ov.cpp —— YOLOX的OpenVINO推理实现
+     b. tasks/auto_aim/yolos/yolox_ov.cpp —— YOLOX的OpenVINO推理实现
      重点理解：
      - OpenVINO模型加载流程（Core→CompiledModel→InferRequest）
      - CPU推理与GPU推理的切换（device参数："CPU"/"GPU"）
@@ -208,18 +208,17 @@
      说明：Horizon_Rm_Vision_26 的 assets/ 目录下已提供多种
      预训练模型（详见下方模型清单），直接使用这些模型学习推理框架的转换
      和部署流程。
-     Horizon_Rm_Vision_26 assets/ 目录现有模型清单：
-     - yolov5a-0708.onnx（YOLOv5 自瞄检测，推荐使用）
-     - best_06_02.onnx / best_06_02.xml（OpenVINO IR格式自瞄模型）
-     - best2-sim.onnx（仿真用自瞄模型）
-     - yolox_rune_3.6m.onnx / yolox_rune_3.6m.xml（YOLOX 符识别）
-     - yolo11.xml / yolo11_buff_int8.xml（YOLO11 符识别 INT8量化）
-     - yolov5.xml / yolov8.xml（YOLOv5/v8 OpenVINO配置）
-     - lenet.onnx / tiny_resnet.onnx（轻量分类模型）
-     - 各平台的 .engine 文件（已预编译的TensorRT引擎，可直接加载推理）
-     a. 选择Horizon_Rm_Vision_26 assets/ 中的一个ONNX模型（推荐 yolov5a-0708.onnx），
+     Horizon_Rm_Vision_26 assets/ 目录现有神经网络模型清单：
+     - yolov5a-0708.onnx（YOLOv5 装甲板原始onnx，可用于转换为engine/xml）
+     - yolov5a-fp16-ada/ampere/orin.engine（YOLOv5 装甲板fp16量化后的trt模式，对应代码的yolov5_trt模式）
+     - best_06_02.onnx （YOLOX 装甲板原始onnx，可用于转换为engine/xml）
+     - best_06_02.xml （YOLOX 装甲板OpenVINO模型，fp16量化后的trt模式，对应代码的yolox_trt模式）
+     - best_06_02-fp16-orin/ampere.engine （YOLOX 装甲板，对应代码yolox_ov模式）
+     - yolov5.xml / yolov8.xml/ yolo11.xml（YOLOv5/v8/11 OpenVINO模式装甲板模型，对应代码的yolov5_ov/yolov8/yolo11模式）
+     -其余模型为传统视觉/能量机关模型，非本日所需
+     a. 选择Horizon_Rm_Vision_26 assets/ 中的一个ONNX模型，
         使用trtexec将其转换为TensorRT engine格式，理解转换过程中的
-        精度选项（FP32/FP16/INT8）和优化参数
+        精度选项（FP32/FP16）和优化参数
         并使用OpenVINO的ovc工具将ONNX转换为IR格式(xml+bin)，
         对比已有xml文件（如best_06_02.xml），理解IR格式的结构
      b. 对比你转换的模型与Horizon_Rm_Vision_26预编译同名engine/IR文件的推理速度是否一致
@@ -270,81 +269,85 @@
 
 说明：
   在Horizon_Rm_Vision_26中，除了YOLO检测外，还有一套传统视觉检测方案（yolo_name = "tra"），
-  通过通道分离+灯条匹配实现装甲板识别。理解传统视觉有助于掌握底层图像处理
-  原理，也是YOLO检测失效时的重要备选方案。
+  通过灰度二值化+轮廓查找+灯条匹配+LeNet分类实现装甲板识别。
 
 任务要求：
-  1. 学习传统视觉装甲板识别的基本流程
-     理解传统视觉装甲板识别的完整pipeline：
-     图像预处理 → 颜色提取 → 二值化 → 轮廓查找 → 灯条筛选 →
-     灯条匹配 → 装甲板数字识别。
-  2. 深入研究Horizon_Rm_Vision_26的传统视觉识别模块
+  1. 学习传统视觉装甲板识别的完整pipeline：
+     灰度二值化 → 轮廓查找 → 灯条筛选(isLight) → 颜色判定(轮廓像素采样)
+     → 灯条配对(matchLights) → 数字ROI提取(透视变换) → LeNet分类。
+  2. 深入研究Horizon_Rm_Vision_26的传统视觉识别模块（26_SP tra模式）
      阅读并理解以下源码：
-     a. tasks/auto_aim/detector.cpp —— 完整的传统视觉检测器
-     b. tasks/auto_aim/detector.hpp —— 检测器接口
-     c. tasks/auto_aim/yolos/traditional.cpp —— 中南LeNet传统识别器
+     a. tasks/auto_aim/yolos/traditional.cpp —— 传统检测器完整实现
         （TraLight灯条类、TraArmor装甲板类、NumberClassifier数字分类器）
-     d. tasks/auto_aim/armor.hpp —— 装甲板数据结构定义
-        （Color/ArmorType/ArmorName枚举，装甲板属性表）
+     b. tasks/auto_aim/yolos/traditional.hpp —— 接口声明
+     c. tasks/auto_aim/armor.hpp —— 装甲板数据结构定义
+        （Color/ArmorType/ArmorName枚举，Lightbar/Armor结构体）
      重点理解：
-     - 通道分离法（红蓝通道相减）提取颜色的思路
-     - 灯条的几何特征筛选（长宽比、斜率角度、最小长度）
-     - PCA角点修正算法（lightbar_points_corrector函数）
-     - 装甲板匹配的几何约束（灯条间距比、角度差、高度比等）
-     - 装甲板重叠时的去重逻辑
-  3. 学习装甲板匹配算法
-     a. 灯条颜色一致性检查（左右灯条必须同色）
-     b. 装甲板几何约束：灯条间距与灯条长度之比、两灯条角度差、
-        两灯条中心连线角度与灯条角度的一致性
-     c. 装甲板重叠去重逻辑（共用灯条的处理）
-  4. 学习装甲板数字识别（分类器）
-     阅读并理解：
-     a. tasks/auto_aim/classifier.cpp —— 分类器实现
-        （支持OpenCV DNN和OpenVINO两种推理方式）
-     b. 学习LeNet模型的输入预处理（get_pattern函数：提取装甲板数字区域
-        并进行仿射变换归一化）
-     理解分类器在整个识别流程中的作用：辅助确认装甲板ID，过滤误识别。
-  5. 学习Horizon_Rm_Vision_26的Voter投票机制
-     阅读 tasks/auto_aim/voter.cpp 和 voter.hpp，理解投票器如何通过
-     多帧投票机制确认装甲板的颜色、名称和类型，提高识别稳定性。
-  6. 编写一个简化的装甲板灯条检测程序
-     使用OpenCV编写C++程序（CMake编译），实现以下功能：
-     a. 读取一张RM比赛场地图片或视频帧（可使用Horizon_Rm_Vision_26仓库中的demo视频：
-        assets/demo/ 目录下的视频文件；如该目录为空，也可自行录制或从
-        RM比赛录像中截取帧）
-     b. 使用通道分离法（红蓝通道相减）提取指定颜色区域
-     c. 进行二值化和形态学操作
-     d. 查找轮廓，使用最小外接矩形筛选灯条（长宽比、角度、面积）
-     e. 将灯条匹配为装甲板，绘制装甲板外框、四角点和中心点
-     f. 提取装甲板数字区域ROI并显示
-     g. 确保输出格式与Day2一致：`std::list<Armor>`（Day12整合时可与
-        Day2的YOLO检测器互换使用，仅需修改一行 #include）
+     - 灯条的几何特征筛选
+     - 颜色判定方式
+     - 装甲板匹配的几何约束
+  3.学习装甲板数字识别（LeNet分类器）
+     阅读并理解 tasks/auto_aim/yolos/traditional.cpp 中的：
+     a. NumberClassifier::extractNumber() —— 透视变换提取数字区域ROI
+     b. NumberClassifier::classify() —— LeNet ONNX推理，取最大输出值对应类别
+     c. NumberClassifier::eraseIgnoreClasses() —— 置信度过滤+type-based过滤
+  4. 编写一个传统视觉装甲板检测程序
+     使用OpenCV编写C++程序（CMake编译），参考 Horizon_Rm_Vision_26 的
+     traditional.cpp 实现以下算法步骤：
+     a. 读取一张RM比赛场地图片或视频帧（可使用Horizon_Rm_Vision_26仓库中的
+        demo视频：assets/demo/ 目录下的视频文件）
+     b. 图像预处理：对输入图像进行灰度化和二值化，得到二值图供后续轮廓查找
+     c. 灯条查找：在二值图中提取轮廓，从每个轮廓构造灯条（最小外接矩形→
+        计算中心点/长度/宽度/主轴方向/倾斜角），然后进行几何筛选
+        （宽度/长度比值需在合理范围内，倾斜角不能过大），最后在轮廓区域内
+        采样 RGB 通道像素值，通过比较 R/B 通道总和对灯条进行红蓝颜色判定
+     d. 装甲板匹配：将敌方颜色的灯条两两配对，检查是否满足：
+        - 两灯条长度比足够接近
+        - 归一化中心距落在小装甲板或大装甲板的合理区间
+        - 两灯条连线与水平方向的夹角不能过大
+        - 两灯条之间不能夹有其他灯条（嵌套排除）
+        根据中心距落入的区间确定装甲板类型（大/小装甲板）
+     e. 将以上管线封装为一个检测器类，提供与Day2一致的统一接口：
+        detect(img) → std::list<Armor>
+     f.（选做）数字区域提取：使用透视变换将装甲板区域归一化为 28×28 的
+        二值图像。源四边形取左右灯条的四个端点，目标矩形按灯条位置和
+        装甲板类型计算（小装甲板宽32px，大装甲板宽54px，灯条高12px，
+        拉伸高28px），裁剪中央 20×28 区域后二值化缩放
+     g.（选做）LeNet 数字分类：加载 Horizon_Rm_Vision_26 assets/ 中的
+        lenet.onnx 模型和 label.txt 标签文件，使用 OpenCV DNN 模块对
+        提取的 28×28 二值数字图进行 ONNX 推理（归一化→blobFromImage→
+        forward），取网络输出中最大值对应的类别作为装甲板数字编号
+     h.（选做）结果过滤：将置信度低于阈值、属于忽略类别、或数字与装甲板
+        类型不匹配（如大装甲板不应被识别为 "2"/"sentry"）的结果剔除
 
 验收内容：
   1. 在Training-26-Summer仓库自己分支下创建"Day3-Traditional"文件夹，提交：
      a. 传统视觉装甲板检测程序的完整代码
      b. 使用RM比赛场地图片或视频（可使用 assets/demo/ 目录下的demo视频）
         运行程序的截图（显示灯条和装甲板检测结果）
-     c. detector.cpp 和 traditional.cpp 的代码阅读笔记
-        （markdown格式，记录关键函数的输入输出和算法流程）
-     d. classifier.cpp 和 voter.cpp 的阅读笔记
-     e. 对装甲板匹配算法的理解总结（markdown，包含匹配条件的推导过程）
-     f. my_traditional_detector.hpp（接口与Day2的my_detector.hpp一致，
-        Day12可互换使用）
+     c. traditional.cpp 的代码阅读笔记
+        （markdown格式，记录TraLight/TraArmor/NumberClassifier关键函数）
+     d. 对装甲板匹配算法的理解总结（markdown，包含匹配条件的推导过程）
+     e. my_traditional_detector.hpp（接口与Day2的my_detector.hpp一致，
+        内部含完整的传统视觉管线，Day12可互换使用）
 
 任务完成方式（二选一）：
    方式A：使用 Horizon_Vision_Tutorial_26/Day3-Traditional/work/ 中的
    骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
    方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
 
+注意：Armor/Color/ArmorType 等共享数据结构统一定义在新上传的
+    Horizon_Vision_Tutorial_26/include/armor_types.hpp 中，
+    Day2/3/4/6/12 将统一通过 #include "../../include/armor_types.hpp" 引用，
+    无需在各 Day 中重复定义，也不依赖 #include 顺序。
 参考：
-  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day3-Traditional/work/（骨架代码，含TODO标记）
-  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day3-Traditional/solution/（完成后对照）
-  - Horizon_Rm_Vision_26 tasks/auto_aim/detector.cpp 和 detector.hpp
+  - 教程骨架模板: Horizon_Vision_Tutorial_26/Day3-Traditional/work/（骨架代码，含TODO标记）
+  - 参考实现: Horizon_Vision_Tutorial_26/Day3-Traditional/solution/（完成后对照）
+  - 共享头文件: Horizon_Vision_Tutorial_26/include/armor_types.hpp
+    （Armor/Color/ArmorType 统一定义，Day2/3/4/6/12 共用，通过 #include "../../include/armor_types.hpp" 引用）
   - Horizon_Rm_Vision_26 tasks/auto_aim/yolos/traditional.cpp 和 traditional.hpp
-  - Horizon_Rm_Vision_26 tasks/auto_aim/classifier.cpp 和 classifier.hpp
-  - Horizon_Rm_Vision_26 tasks/auto_aim/voter.cpp 和 voter.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/armor.hpp
+  - Horizon_Rm_Vision_26 assets/lenet.onnx / assets/label.txt（LeNet模型和标签）
 
 
 ================================================================================
@@ -354,10 +357,8 @@
 @全体成员 新生暑假任务 Day4(自瞄组):
 
 说明：
-  在Horizon_Rm_Vision_26中，PnP解算和坐标变换不是两个独立步骤，而是Solver类的同一个
-  成员函数 solve() 的连续流程：
+  在Horizon_Rm_Vision_26中，PnP解算和坐标变换是Solver类的成员函数 solve() 的连续流程：
     cv::solvePnP → 相机坐标 → 云台坐标(R_camera2gimbal) → 世界坐标(R_gimbal2world) → 欧拉角 → yaw优化
-  本日将Solver作为一个完整模块来学习，与Horizon_Rm_Vision_26源码结构保持一致。
 
 任务要求：
   1. 系统学习相机成像模型与四个坐标系
@@ -398,10 +399,10 @@
      e. 输出旋转向量、旋转矩阵、欧拉角(yaw, pitch, roll)
      f. 使用求得的位姿将3D点反投影到2D，计算重投影误差
      g. 验证旋转矩阵的正交性
-     h. 将核心解算逻辑保存为 my_solver.hpp，提供接口：
+     h. 将完整的 my_solver.hpp + solver.cpp 作为 Solver 模块保存，对外提供接口：
         `void solve(Armor& armor)` —— 接收Armor引用，填充 xyz_in_world 等字段
         （Day6的Tracker将直接 #include 并调用此接口）
-     ★ 注：外参（R_camera2gimbal、t_camera2gimbal）的来源已在 Day1 任务7 中
+     注：外参（R_camera2gimbal、t_camera2gimbal）的来源已在 Day1 任务7 中
         学习（手眼标定 AX=XB），本日直接从 YAML 加载使用即可，无需重复。
 
 验收内容：
@@ -422,9 +423,18 @@
   - Horizon_Rm_Vision_26 configs/camera_param/（相机内参和手眼标定参数示例）
   - OpenCV solvePnP官方文档
   - 《视觉SLAM十四讲》第5讲（相机与图像）
-  - ★ 教程骨架模板: Day4-Solver/work/my_solver.hpp + solver.cpp（骨架代码）
-  - ★ Python原型: Day4-Solver/python_proto/pnp_proto.py（先用Python理解流程）
-  - ★ 验证工具: tools/verify_solver.py（自动判断PnP结果是否在容差内）
+  - 教程骨架模板: Day4-Solver/work/my_solver.hpp + solver.cpp（骨架代码）
+  - Python原型: Day4-Solver/python_proto/pnp_proto.py（先用Python理解流程）
+  - 验证工具: tools/verify_solver.py（自动判断PnP结果是否在容差内）
+  - 共享头文件: include/armor_types.hpp（Armor 统一定义，含 Solver 输出字段）
+
+  注意：
+  1.Day1 发布时 my_camera_param.yaml 模板使用了嵌套格式 {rows:, cols:, data: [...]}，
+  而 26_SP 和 Day4 推荐扁平数组格式 [...]。Day4 的 Solver 已内置兼容层，
+  两种格式均可直接加载，无需修改 Day1 标定结果。
+  详见 Day4-Solver/solution/README.md 的「Day1 YAML 格式兼容说明」。
+  2.Armor 结构体定义在 Horizon_Vision_Tutorial_26/include/armor_types.hpp，
+  已包含 Solver 输出字段（xyz_in_world 等），Day4 直接 #include 即可使用。
 
 
 ================================================================================

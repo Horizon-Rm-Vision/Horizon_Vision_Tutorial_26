@@ -15,6 +15,13 @@
  *   - auto_aim::YOLO (tasks/auto_aim/yolo.hpp)
  *   - auto_aim::Armor (tasks/auto_aim/armor.hpp)
  *
+ * ★ 类型转换注意（26_SP Armor → my_auto_aim::Armor）：
+ *   - Color 枚举: 26_SP red=0, blue=1  →  共享头文件 red=0, blue=1 ✓ 一致
+ *   - ArmorType:   26_SP big=0, small=1 →  共享头文件 small=0, big=1 ✗ 需翻转
+ *   - ArmorName:   26_SP 使用 enum, 共享头文件用 string → 查 ARMOR_NAMES 表
+ *   - points 顺序必须与 include/armor_types.hpp 注释一致:
+ *     {right.top, left.top, left.bottom, right.bottom}
+ *
  * 工作步骤：
  *   1. 阅读 26_SP yolo.hpp / yolo.cpp 理解 YOLO 类的构造和使用
  *   2. 理解 yaml 配置中 yolo_name 字段如何选择后端
@@ -41,23 +48,10 @@
 // #include "yolo.hpp"    // 26_SP tasks/auto_aim/yolo.hpp
 // #include "armor.hpp"   // 26_SP tasks/auto_aim/armor.hpp
 
-namespace my_auto_aim {
+// ★ 统一引用共享的 Armor/Color/ArmorType 定义（与 Day3/4/6/12 共用）
+#include "../../include/armor_types.hpp"
 
-// ================================================================
-// #### Task 2-1a: 如果无法直接引用 26_SP，先定义简化的 Armor 结构体
-// （如果已 #include 26_SP 的 armor.hpp，此定义可跳过）
-// ================================================================
-#ifndef ARMOR_DEFINED
-struct Armor {
-    std::vector<cv::Point2f> points;  // 装甲板四角点（图像坐标）
-    cv::Point2f center;               // 中心点
-    float confidence{0.0f};           // 检测置信度
-    int color{0};                     // 颜色 (0=蓝, 1=红)
-    int type{0};                      // 装甲板类型
-    std::string name;                 // 装甲板名称
-};
-#define ARMOR_DEFINED
-#endif
+namespace my_auto_aim {
 
 // ================================================================
 // #### Task 2-1b: 实现 MyDetector 类 ############################

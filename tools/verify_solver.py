@@ -6,6 +6,9 @@ verify_solver.py —— PnP Solver 验证工具
 给定已知的 3D 世界坐标和相机参数，生成对应的 2D 投影点，
 然后验证 solvePnP 能否恢复出原始位姿。
 
+坐标系约定（与 Horizon_Rm_Vision_26 一致）：
+  装甲板 3D 模型: 平面为 YZ 平面, X=0（法线方向）
+
 用法：
     python3 verify_solver.py                    # 生成测试数据
     python3 verify_solver.py --check result.csv # 验证学生的输出
@@ -30,17 +33,18 @@ DIST = np.array([-0.15, 0.25, 0.0, 0.0, 0.0], dtype=np.float64)
 R_TRUE, _ = cv2.Rodrigues(np.array([0.1, -0.5, 0.05], dtype=np.float64))
 T_TRUE = np.array([0.3, -0.1, 2.5], dtype=np.float64).reshape(3, 1)
 
-# ====== 装甲板 3D 角点（世界坐标，模拟大装甲板 230×127mm）=======
+# ====== 装甲板 3D 角点 (与 26_SP 一致: 平面=YZ平面, X=0) ======
+# 大装甲板: width=230mm, lightbar_length=56mm
 ARMOR_WIDTH = 0.230   # m
-ARMOR_HEIGHT = 0.127  # m
+LIGHTBAR_LEN = 0.056  # m
 HALF_W = ARMOR_WIDTH / 2
-HALF_H = ARMOR_HEIGHT / 2
+HALF_L = LIGHTBAR_LEN / 2
 
 OBJECT_POINTS = np.array([
-    [-HALF_W, -HALF_H, 0.0],  # 左下
-    [+HALF_W, -HALF_H, 0.0],  # 右下
-    [+HALF_W, +HALF_H, 0.0],  # 右上
-    [-HALF_W, +HALF_H, 0.0],  # 左上
+    [0.0, +HALF_W, +HALF_L],  # (0, +0.115, +0.028)
+    [0.0, -HALF_W, +HALF_L],  # (0, -0.115, +0.028)
+    [0.0, -HALF_W, -HALF_L],  # (0, -0.115, -0.028)
+    [0.0, +HALF_W, -HALF_L],  # (0, +0.115, -0.028)
 ], dtype=np.float64)
 
 # ====== 误差容限 ======
@@ -65,6 +69,7 @@ def generate_test_data():
 
     print("=" * 60)
     print("PnP Solver 验证测试数据")
+    print("坐标系: 装甲板平面=YZ, X=法线 (与 26_SP 一致)")
     print("=" * 60)
     print(f"相机内参 K:\n{K}")
     print(f"畸变系数 D: {DIST}")
@@ -109,7 +114,7 @@ def compute_reprojection_error(object_points, image_points, rvec, tvec):
     return float(np.mean(errors)), errors
 
 
-def check_student_result(rvec_student, tvec_student):
+def check_student_result(rvec_student, tvec_student, image_points):
     """验证学生的 PnP 结果"""
     rvec_true, _ = cv2.Rodrigues(R_TRUE)
 
@@ -131,7 +136,7 @@ def check_student_result(rvec_student, tvec_student):
 
     # 重投影误差
     reproj_mean, reproj_per_point = compute_reprojection_error(
-        OBJECT_POINTS, generate_test_data()[1], rvec_student, tvec_student)
+        OBJECT_POINTS, image_points, rvec_student, tvec_student)
     p_pass = reproj_mean < REPROJECTION_TOL
 
     print(f"平移误差:  {t_error*100:.2f} cm  {'✓ 通过' if t_pass else '✗ 不通过 (容限:' + str(TRANSLATION_TOL*100) + 'cm)'}")
@@ -173,8 +178,8 @@ def main():
         data = np.loadtxt(args.check, delimiter=",", skiprows=1)
         rvec_student = data[0:3]
         tvec_student = data[3:6]
-        generate_test_data()
-        check_student_result(rvec_student, tvec_student)
+        _, image_points = generate_test_data()  # 生成 3D/2D 点对并缓存 image_points
+        check_student_result(rvec_student, tvec_student, image_points)
 
 
 if __name__ == "__main__":

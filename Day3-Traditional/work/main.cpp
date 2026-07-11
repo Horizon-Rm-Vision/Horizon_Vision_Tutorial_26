@@ -1,254 +1,169 @@
 /**
  * Day3-Traditional/work/main.cpp —— 传统视觉装甲板识别骨架
  *
- * #### Task 3-1: 实现通道分离法颜色提取 ################################
- * 红蓝通道相减法提取指定颜色区域：
- *   - 蓝色：B - R > threshold
- *   - 红色：R - B > threshold
+ * 使用方法：
+ *   1. 确保 ../assets/lenet.onnx 和 ../assets/label.txt 存在
+ *   2. 准备测试图片，修改下方 img_path
+ *   3. mkdir build && cd build && cmake .. && cmake --build .
+ *   4. ./my_traditional_detector [test_image.jpg]
  *
- * #### Task 3-2: 实现灯条筛选 ########################################
- * 对轮廓使用最小外接矩形，按以下条件筛选灯条：
- *   - 长宽比 > min_ratio (如 3.0)
- *   - 面积 > min_area
- *   - 角度在一定范围内
+ * ★ 任务：实现与 my_traditional_detector.hpp 配套的独立演示程序
  *
- * #### Task 3-3: 实现装甲板匹配 ######################################
- * 将灯条配对为装甲板，匹配条件：
- *   - 两灯条颜色一致
- *   - 灯条间距与灯条长度之比合理
- *   - 两灯条角度差小
- *   - 两灯条中心连线角度与灯条角度一致
+ * 完成 my_traditional_detector.hpp 后，用此文件测试你的检测器。
+ * 如果只想在 Day12 整合中使用检测器，此文件可以不改。
  *
- * 参考：
- *   - 26_SP tasks/auto_aim/detector.cpp
- *   - 26_SP tasks/auto_aim/yolos/traditional.cpp
- *   - 26_SP tasks/auto_aim/armor.hpp
- * ================================================================
+ * 参考 26_SP 源码：
+ *   - tasks/auto_aim/yolos/traditional.cpp (完整 tra 模式实现)
+ *   - src/standard.cpp (主程序调用 detect 的方式)
  */
+
+// ★ 使用封装好的检测器类（接口与 Day2 一致）
+#include "my_traditional_detector.hpp"
 
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include <list>
-#include <vector>
-#include <algorithm>
+#include <chrono>
+
+using namespace my_auto_aim;
 
 // ================================================================
-// #### Task 3-1: 颜色提取 ##########################################
-// TODO: 实现红蓝通道相减法
-// 蓝色装甲板: gray = B - R (或 gray = B - 0.5*R - 0.5*G)
-// 红色装甲板: gray = R - B
+// Task 3-demo: 调试可视化函数
+//
+// 参考 26_SP TraditionalDetector::drawResults()
+// 在图像上绘制灯条（线段+中心点）和装甲板（四边形+数字标签）
 // ================================================================
-cv::Mat extract_color(const cv::Mat& img, bool is_blue)
+void draw_results(cv::Mat& img, const MyTraditionalDetector& detector,
+                  const std::list<Armor>& armors)
 {
-    // TODO: 分离 BGR 通道，计算颜色差分图
-    // === 你的代码开始 ===
-    
-    std::vector<cv::Mat> channels;
-    cv::split(img, channels);
-    
-    cv::Mat gray;
-    if (is_blue) {
-        gray = channels[0] - channels[2];  // B - R
-    } else {
-        gray = channels[2] - channels[0];  // R - B
-    }
-    
-    return gray;
-    
+    // === 你的代码开始 (可视化) ===
+
+    // TODO: 1. 绘制二值图 (detector.getBinaryImg())
+    // 提示: cv::cvtColor(binary→BGR) → cv::resize(0.5) → cv::imshow("binary", ...)
+
+    // TODO: 2. 绘制灯条
+    // 提示: for (auto& light : detector.getLights())
+    //           cv::line(img, light.top, light.bottom, ...)
+    //           cv::circle(img, light.center, 2, ...)
+
+    // TODO: 3. 绘制装甲板四边形 + 中心点 + 数字标签
+    // 提示: for (auto& armor : armors)
+    //           cv::line 连接 armor.points[0..3]
+    //           cv::putText 显示 armor.name + armor.confidence
+
     // === 你的代码结束 ===
 }
 
-// ================================================================
-// #### Task 3-2: 灯条结构体 + 筛选条件 ##############################
-// ================================================================
-struct LightBar {
-    cv::RotatedRect rect;
-    cv::Point2f center;
-    float length;
-    float width;
-    float angle;
-    bool is_blue;
-};
-
-std::vector<LightBar> find_light_bars(const cv::Mat& gray, bool is_blue)
-{
-    // TODO:
-    //   1. 二值化 (cv::threshold)
-    //   2. 形态学操作（可选：膨胀+腐蚀，去除噪点）
-    //   3. 查找轮廓 (cv::findContours)
-    //   4. 对每个轮廓计算最小外接矩形 (cv::minAreaRect)
-    //   5. 按条件筛选灯条
-    //
-    // 筛选条件（参考 26_SP detector.cpp）:
-    //   - 长宽比 > 3.0 (灯条细长)
-    //   - 最小面积 > 20 像素
-    //   - 角度 |angle| < 45° 或 |angle - 90| < 45° (灯条接近竖直)
-    
-    // === 你的代码开始 ===
-    
-    std::vector<LightBar> light_bars;
-    
-    cv::Mat binary;
-    cv::threshold(gray, binary, 60, 255, cv::THRESH_BINARY);
-    
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(binary, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-    
-    for (const auto& contour : contours) {
-        if (contour.size() < 6) continue;
-        
-        cv::RotatedRect rect = cv::minAreaRect(contour);
-        float w = rect.size.width;
-        float h = rect.size.height;
-        
-        // 确保 length >= width
-        float length = std::max(w, h);
-        float width = std::min(w, h);
-        
-        // 面积筛选
-        float area = length * width;
-        if (area < 20) continue;
-        
-        // 长宽比筛选
-        float ratio = length / width;
-        if (ratio < 3.0) continue;
-        
-        LightBar lb;
-        lb.rect = rect;
-        lb.center = rect.center;
-        lb.length = length;
-        lb.width = width;
-        lb.angle = rect.angle;
-        lb.is_blue = is_blue;
-        
-        light_bars.push_back(lb);
-    }
-    
-    return light_bars;
-    
-    // === 你的代码结束 ===
-}
-
-// ================================================================
-// #### Task 3-3: 装甲板匹配 ########################################
-// ================================================================
-struct MyArmor {
-    LightBar left;
-    LightBar right;
-    cv::Point2f center;
-    std::vector<cv::Point2f> corners;
-};
-
-std::list<MyArmor> match_armors(const std::vector<LightBar>& light_bars)
-{
-    // TODO: 将灯条配对为装甲板
-    // 匹配条件:
-    //   a. 左右灯条颜色一致 (left.is_blue == right.is_blue)
-    //   b. 两灯条中心距离与灯条长度之比在合理范围
-    //   c. 两灯条角度差不大
-    //   d. 两灯条中心连线方向大致垂直于灯条方向
-    //
-    // 提示: 
-    //   - 按 x 坐标排序灯条（左到右）
-    //   - 遍历所有灯条对 (i, j)
-    //   - 计算几何约束并配对
-    
-    // === 你的代码开始 ===
-    
-    std::list<MyArmor> armors;
-    
-    for (size_t i = 0; i < light_bars.size(); i++) {
-        for (size_t j = i + 1; j < light_bars.size(); j++) {
-            const auto& lb1 = light_bars[i];
-            const auto& lb2 = light_bars[j];
-            
-            // a. 颜色一致性
-            if (lb1.is_blue != lb2.is_blue) continue;
-            
-            // b. 间距 vs 长度
-            float dx = lb2.center.x - lb1.center.x;
-            float dy = lb2.center.y - lb1.center.y;
-            float dist = std::sqrt(dx * dx + dy * dy);
-            float avg_len = (lb1.length + lb2.length) / 2.0f;
-            float ratio = dist / avg_len;
-            if (ratio < 0.5f || ratio > 5.0f) continue;
-            
-            // c. 角度差
-            float angle_diff = std::abs(lb1.angle - lb2.angle);
-            if (angle_diff > 15.0f) continue;
-            
-            // d. 配对方向检查
-            float pair_angle = std::atan2(dy, dx) * 180.0f / CV_PI;
-            float lb_angle = (lb1.angle + lb2.angle) / 2.0f;
-            float ortho_diff = std::abs(std::abs(pair_angle - lb_angle) - 90.0f);
-            if (ortho_diff > 30.0f) continue;
-            
-            MyArmor armor;
-            // 左边灯条是 x 坐标较小的
-            if (lb1.center.x < lb2.center.x) {
-                armor.left = lb1; armor.right = lb2;
-            } else {
-                armor.left = lb2; armor.right = lb1;
-            }
-            armor.center = cv::Point2f(
-                (lb1.center.x + lb2.center.x) / 2,
-                (lb1.center.y + lb2.center.y) / 2);
-            
-            armors.push_back(armor);
-        }
-    }
-    
-    return armors;
-    
-    // === 你的代码结束 ===
-}
-
-int main()
+int main(int argc, char** argv)
 {
     std::cout << "========================================" << std::endl;
     std::cout << "  Lecture 3: 传统视觉装甲板识别" << std::endl;
+    std::cout << "  模式: 26_SP tra 模式" << std::endl;
     std::cout << "========================================" << std::endl;
     std::cout << std::endl;
 
-    // 测试图片路径
+    // ============================================================
+    // Step 1: 初始化检测器
+    //
+    // 对照 26_SP TraditionalDetector 构造函数：
+    //   - enemy_color: 敌方颜色（"red"/"blue"）
+    //   - binary_thres: 灰度二值化阈值（26_SP 默认 90）
+    //   - model_path:   LeNet ONNX 模型路径 (选做, 留空可跳过分类)
+    //   - label_path:   标签文件路径 (选做)
+    // ============================================================
+    std::string model_path = "../assets/lenet.onnx";
+    std::string label_path = "../assets/label.txt";
+
+    std::cout << "[Init] 加载 LeNet 模型: " << model_path << std::endl;
+    std::cout << "[Init] 加载标签文件:  " << label_path << std::endl;
+
+    // === 你的代码开始 (Step 1: 构造检测器) ===
+
+    // TODO: MyTraditionalDetector detector("red", 90, model_path, label_path);
+
+    // === 你的代码结束 ===
+
+    // ============================================================
+    // Step 2: 加载测试图片
+    // ============================================================
     std::string img_path = "test_armor.jpg";
-    
+    if (argc > 1) img_path = argv[1];
+
     cv::Mat img = cv::imread(img_path);
     if (img.empty()) {
-        std::cout << "请将一张 RM 比赛场地图片放在当前目录，" << std::endl;
-        std::cout << "或修改 img_path 变量指向你的测试图片。" << std::endl;
-        std::cout << "可使用 26_SP assets/demo/ 中的 demo 视频截图。" << std::endl;
+        // 尝试 demo 视频第一帧
+        std::string demo_path = "../../../../Horizon_Rm_Vision_26/assets/demo/demo.avi";
+        cv::VideoCapture cap(demo_path);
+        if (cap.isOpened()) {
+            std::cout << "[Input] 使用 demo 视频第一帧" << std::endl;
+            cap.read(img);
+            cap.release();
+        }
+    }
+
+    if (img.empty()) {
+        std::cout << "请将测试图片放在当前目录或通过命令行参数指定。" << std::endl;
         return 0;
     }
+    std::cout << "[Input] 图片尺寸: " << img.cols << "x" << img.rows << std::endl;
 
-    // 提取蓝色区域
-    cv::Mat blue_gray = extract_color(img, true);
-    auto blue_bars = find_light_bars(blue_gray, true);
-    std::cout << "检测到 " << blue_bars.size() << " 个蓝色灯条" << std::endl;
+    // ============================================================
+    // Step 3: 运行检测
+    // ============================================================
+    std::cout << "[Detect] 开始检测..." << std::endl;
 
-    // 提取红色区域
-    cv::Mat red_gray = extract_color(img, false);
-    auto red_bars = find_light_bars(red_gray, false);
-    std::cout << "检测到 " << red_bars.size() << " 个红色灯条" << std::endl;
+    // === 你的代码开始 (Step 3: 调用 detect) ===
 
-    // 合并所有灯条并匹配
-    std::vector<LightBar> all_bars;
-    all_bars.insert(all_bars.end(), blue_bars.begin(), blue_bars.end());
-    all_bars.insert(all_bars.end(), red_bars.begin(), red_bars.end());
-    
-    auto armors = match_armors(all_bars);
-    std::cout << "匹配到 " << armors.size() << " 个装甲板" << std::endl;
+    // TODO: auto t_start = std::chrono::steady_clock::now();
+    //       auto armors = detector.detect(img);
+    //       auto t_end = std::chrono::steady_clock::now();
+    //       double elapsed_ms = duration<double, milli>(t_end - t_start).count();
 
-    // 绘制结果
-    cv::Mat display = img.clone();
-    for (const auto& armor : armors) {
-        cv::circle(display, armor.center, 5, cv::Scalar(0, 255, 0), -1);
-        cv::line(display, armor.left.center, armor.right.center,
-                 cv::Scalar(255, 0, 0), 2);
-    }
-    cv::imshow("Traditional Armor Detection", display);
-    std::cout << "按任意键退出..." << std::endl;
-    cv::waitKey(0);
+    // === 你的代码结束 ===
+
+    // ============================================================
+    // Step 4: 输出结果
+    // ============================================================
+    std::cout << "========================================" << std::endl;
+    std::cout << "  检测结果" << std::endl;
+    std::cout << "========================================" << std::endl;
+
+    // === 你的代码开始 (Step 4: 输出) ===
+
+    // TODO: std::cout << "  灯条数量: " << detector.getLights().size() << std::endl;
+    //       std::cout << "  装甲板数量: " << armors.size() << std::endl;
+    //       std::cout << "  耗时: " << elapsed_ms << " ms" << std::endl;
+    //       for (auto& armor : armors) {
+    //           std::cout << "  数字=" << armor.name
+    //                     << " 颜色=" << (armor.color==0?"红":"蓝")
+    //                     << " 置信度=" << int(armor.confidence*100) << "%"
+    //                     << " 中心=(" << int(armor.center.x) << "," << int(armor.center.y) << ")"
+    //                     << std::endl;
+    //       }
+
+    // === 你的代码结束 ===
+
+    // ============================================================
+    // Step 5: 可视化
+    // ============================================================
+    std::string info = "Day3 Traditional Detector";
+    cv::putText(img, info, cv::Point(10, 30),
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+
+    // === 你的代码开始 (Step 5: 调用 draw_results) ===
+
+    // TODO: cv::Mat display = img.clone();
+    //       draw_results(display, detector, armors);
+    //       cv::imshow("Traditional Detector", display);
+    //       cv::waitKey(0);
+
+    // === 你的代码结束 ===
+
+    std::cout << std::endl;
+    std::cout << "提示: 如果上述代码还不能运行，" << std::endl;
+    std::cout << "      请先完成 my_traditional_detector.hpp 中的 TODO。" << std::endl;
+    std::cout << "      对照 26_SP tasks/auto_aim/yolos/traditional.cpp 逐函数实现。" << std::endl;
 
     return 0;
 }
+
+
