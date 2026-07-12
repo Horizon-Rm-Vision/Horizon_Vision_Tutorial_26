@@ -10,12 +10,20 @@
  *   send(yaw, pitch, fire)  —— 向电控发送云台角度和开火指令
  *   receive() → GimbalState  —— 接收电控发来的云台状态（角度、弹速等）
  *
- * 8字节数据包格式（参考 26_SP io/gimbal/）:
+ * 8字节数据包格式（参考 26_SP io/gimbal/，★ 简化教学版本）:
  *   Byte 0: 包头 (如 0xA5)
  *   Byte 1: 无符号整数 (0-255)，如模式标志
  *   Byte 2: 位运算字节（每位代表一个布尔标志，如开火、陀螺等）
  *   Byte 3-6: 浮点数（如 yaw 角，IEEE 754 单精度）
  *   Byte 7: 包尾 (如 0x5A)
+ *
+ * ⚠ SPSREMU 兼容性警告:
+ *   以上为简化教学格式（8字节，仅含yaw），与 26_SP / SPSREMU_V10.py
+ *   的真实协议不同。26_SP 实际格式（以普通模式为例）:
+ *     head(0xCD) + pitch(float4B) + yaw(float4B) + mode(1B)
+ *     + bullet_speed(1B) + tail(0xDC) = 11字节
+ *   使用 SPSREMU_V10.py 联调时，需将封包格式适配为 26_SP 协议。
+ *   详见 Day13-Integration2/work/README.md 的协议兼容性说明。
  *
  * 参考：
  *   - 26_SP io/gimbal/gimbal.cpp / gimbal.hpp
@@ -191,8 +199,17 @@ private:
         //
         // struct termios options;
         // tcgetattr(fd, &options);
-        // cfsetispeed(&options, B115200);
-        // cfsetospeed(&options, B115200);
+        //
+        // // 根据 baud_rate 参数选择波特率常量:
+        // speed_t speed = B115200;  // 默认
+        // switch (baud_rate) {
+        //   case 9600:   speed = B9600;   break;
+        //   case 115200: speed = B115200; break;
+        //   case 921600: speed = B921600; break;
+        //   // ... 其他波特率
+        // }
+        // cfsetispeed(&options, speed);
+        // cfsetospeed(&options, speed);
         // options.c_cflag |= (CLOCAL | CREAD);
         // options.c_cflag &= ~PARENB;  // 无校验
         // options.c_cflag &= ~CSTOPB;  // 1 停止位

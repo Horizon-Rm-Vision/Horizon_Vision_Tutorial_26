@@ -14,7 +14,7 @@ Day7-Planner/python_proto/trajectory_proto.py —— 弹道曲线可视化原型
 import numpy as np
 import matplotlib.pyplot as plt
 
-G = 9.81  # 重力加速度 (m/s²)
+G = 9.81  # 重力加速度 (m/s²)，标准值；26_SP 使用 9.7833 (深圳实测)，对 8m 内影响 < 1ms
 
 def compute_trajectory_no_drag(bullet_speed, distance, height, num_points=100):
     """
@@ -81,7 +81,7 @@ def compare_bullet_speeds():
     for i, dist in enumerate(distances):
         for j, speed in enumerate(speeds):
             ax = axes[j, i]
-            _, theta, traj = compute_trajectory_no_drag(speed, dist, 0.0)
+            t_flight, theta, traj = compute_trajectory_no_drag(speed, dist, 0.0)
             
             if traj:
                 xs = [p[0] for p in traj]
@@ -90,7 +90,10 @@ def compare_bullet_speeds():
                 ax.plot(dist, 0.0, 'r*', markersize=10, label='目标')
                 
                 # 标注飞行时间
-                t, _ = compute_trajectory_no_drag(speed, dist, 0.0)[:2]
+                if t_flight is not None:
+                    ax.text(0.5, 0.9, f'飞行时间: {t_flight*1000:.0f}ms',
+                            transform=ax.transAxes, fontsize=9,
+                            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
             
             ax.set_xlabel('距离 (m)')
             ax.set_ylabel('高度 (m)')

@@ -20,6 +20,11 @@ target_link_libraries(my_aimer_test ${OpenCV_LIBS})
 # Phase 2: 双模式自动切换（完成 Phase 1 后取消注释）
 #   通过 yaml 配置或 gyro 检测自动在 MPC/Aimer 模式间切换
 #   引入 Day7 的 my_planner.hpp，实现决策模式切换器
+#
+#   解锁步骤（三处都要操作）:
+#     1. 取消下面 add_definitions 和 target_include_directories 的注释
+#     2. my_aimer.hpp 中取消 #include "../Day7-Planner/work/my_planner.hpp" 的注释
+#     3. my_aimer.hpp 中取消 #ifdef PHASE_2_ENABLED 块内 decide() 和 set_mode() 的注释
 # ================================================================
 # add_definitions(-DPHASE_2_ENABLED)
 # target_include_directories(my_aimer_test PRIVATE
@@ -28,5 +33,9 @@ target_link_libraries(my_aimer_test ${OpenCV_LIBS})
 # ================================================================
 # Phase 3: 真实数据验证（完成 Phase 2 后取消注释）
 #   使用 demo 视频帧运行 Aimer 全流程，绘制 yaw/pitch 对比曲线
+#
+#   解锁步骤（两处都要操作）:
+#     1. 取消下面 add_definitions 的注释
+#     2. my_aimer.hpp 中取消 #ifdef PHASE_3_ENABLED 块内 process_frame() 的注释
 # ================================================================
 # add_definitions(-DPHASE_3_ENABLED)

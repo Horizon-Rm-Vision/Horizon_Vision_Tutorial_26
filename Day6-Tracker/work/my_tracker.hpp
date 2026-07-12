@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "../Day4-Solver/work/my_solver.hpp"
-#include "../Day5-EKF/work/my_ekf.hpp"
+#include "../../Day4-Solver/work/my_solver.hpp"
+#include "../../Day5-EKF/work/my_ekf.hpp"
 #include <list>
 #include <memory>
 
@@ -81,6 +81,9 @@ public:
     {
         // TODO: 实现简化的跟踪逻辑
         // Step 1: 选择目标装甲板（优先选择置信度最高的）
+        // 注意: armors 是 const 容器, armors.front() 返回 const Armor&
+        //   而 solver_.solve() 接受 Armor& (非常量引用, 需要修改 armor 内部字段)
+        //   因此需要拷贝一份: Armor armor = armors.front();
         // Step 2: 调用 solver_.solve(armor) 进行 PnP + 坐标变换
         // Step 3: 构造 EKF 的 F 矩阵（匀速模型，dt = 0.03s）
         //   F = I_8x8, F(0,1)=dt, F(2,3)=dt, F(4,5)=dt, F(6,7)=dt

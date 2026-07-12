@@ -13,6 +13,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/../../Day6-Tracker/work
     ${CMAKE_SOURCE_DIR}/../../Day7-Planner/work
     ${CMAKE_SOURCE_DIR}/../../Day8-AimerShooter/work
+    ${CMAKE_SOURCE_DIR}/../../Day12-Integration1/work   # Day12 my_gimbal.hpp
 )
 
 add_executable(my_full_pipeline main.cpp)

@@ -19,8 +19,8 @@ int main()
     TrackResult target;
     target.xyz_in_world = Eigen::Vector3d(3.0, 1.0, 1.5);   // 3m前, 1m右, 1.5m高
     target.velocity = Eigen::Vector3d(2.0, 0.5, 0.0);        // 运动目标
-    target.yaw = 0.3;
-    target.omega = 1.0;
+    target.yaw = 0.3;     // EKF 估计的装甲板朝向角 (Phase 1 暂未使用，Phase 3 MPC 会用到)
+    target.omega = 1.0;   // 角速度 rad/s（用于小陀螺判定和 MPC 参考轨迹）
     target.state = 2;  // TRACKING
     target.valid = true;
 
@@ -63,7 +63,9 @@ int main()
     double dt = 0.01;
     Eigen::Matrix2d A;
     A << 1.0, dt, 0.0, 1.0;
-    Eigen::Vector2d B(dt * dt / 2.0, dt);
+    // B: 状态转移控制矩阵 (2×1)，显式声明类型避免隐式转换混淆
+    Eigen::Matrix<double, 2, 1> B;
+    B << dt * dt / 2.0, dt;
     
     Eigen::Matrix2d Q = Eigen::Matrix2d::Identity() * 10.0;
     Eigen::MatrixXd R = Eigen::MatrixXd::Identity(1, 1) * 0.1;

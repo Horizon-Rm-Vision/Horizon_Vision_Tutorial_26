@@ -65,7 +65,7 @@ const std::vector<cv::Point3f>& Solver::get_armor_object_points(ArmorType type)
 //       cols: 5
 //       data: [k1, k2, p1, p2, k3]
 //
-// ★ 说明：Day1 发布时使用了格式B，本加载器同时兼容两种格式。
+// 说明：Day1 发布时使用了格式B，本加载器同时兼容两种格式。
 //   如果你重新标定，建议直接使用格式A（与 26_SP 一致）。
 //   外参 R_camera2gimbal / t_camera2gimbal / R_gimbal2imubody 同理。
 // ================================================================

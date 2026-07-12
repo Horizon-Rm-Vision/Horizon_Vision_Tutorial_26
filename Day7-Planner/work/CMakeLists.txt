@@ -20,6 +20,10 @@ target_link_libraries(my_planner_test ${OpenCV_LIBS})
 # Phase 2: 空气阻力弹道（完成 Phase 1 后取消注释）
 #   实现带空气阻力的英雄弹道模型（迭代法求解飞行时间）
 #   对比无阻力 vs 有阻力模型的飞行时间差异
+#
+#   解锁步骤（两处都要操作）:
+#     1. 取消下面 add_definitions 和 target_include_directories 的注释
+#     2. my_planner.hpp 中取消 #ifdef PHASE_2_ENABLED 块内 compute_fly_time_with_drag() 的注释
 # ================================================================
 # add_definitions(-DPHASE_2_ENABLED)
 
@@ -27,5 +31,9 @@ target_link_libraries(my_planner_test ${OpenCV_LIBS})
 # Phase 3: 简化 MPC 求解器（完成 Phase 2 后取消注释）
 #   用 Eigen 实现微型 MPC：代价函数 J = Σ(x̂-Q-x̂ + û-R-û)
 #   带输入约束，求解最优控制序列
+#
+#   解锁步骤（两处都要操作）:
+#     1. 取消下面 add_definitions 的注释
+#     2. my_planner.hpp 中取消 #ifdef PHASE_3_ENABLED 块内 solve_mpc() 的注释
 # ================================================================
 # add_definitions(-DPHASE_3_ENABLED)

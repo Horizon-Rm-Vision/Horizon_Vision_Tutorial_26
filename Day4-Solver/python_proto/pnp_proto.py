@@ -20,8 +20,6 @@ Lecture4/python_proto/pnp_proto.py —— PnP 坐标变换 Python 原型
       - Y 轴 = 水平方向（灯条排列方向, 宽度 230mm / 135mm）
       - Z 轴 = 垂直方向（灯条方向, 高度 56mm）
 
-    注意: 此坐标系与早期教学资料中使用的 "装甲板平面=XY, Z=0" 不同。
-          26_SP 使用 YZ 平面是因为装甲板法线是 X 方向(前向)。
 """
 
 import numpy as np

@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include "../Day6-Tracker/work/my_tracker.hpp"
+#include "../../Day6-Tracker/work/my_tracker.hpp"
 #include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
 #ifdef PHASE_2_ENABLED
-#include "../Day7-Planner/work/my_planner.hpp"
+#include "../../Day7-Planner/work/my_planner.hpp"
 #endif
 
 namespace my_auto_aim {
@@ -44,6 +44,12 @@ public:
         : gyro_speed_threshold_(gyro_threshold) {}
 
     // Task 8-1 ~ 8-3: 瞄准点选择 + 小陀螺判定 + 开火判断
+    // 简化说明:
+    //   - 小陀螺判定: 本教程仅用角速度阈值 (|ω|>threshold)，26_SP 使用双重阈值
+    //     (gyro_speed_threshold + gyro_angle_threshold) 以过滤假阳性
+    //   - 迎面/背离判定: 本教程用 dot(xyz, velocity) 简化，26_SP 使用
+    //     comming_angle/leaving_angle 参数基于装甲板法向量角度判定
+    //   - pitch 角: 使用纯几何仰角，26_SP Aimer 也使用 Trajectory 类补偿重力
     AimCommand aim(const TrackResult& target,
                    double current_yaw, double current_pitch)
     {
@@ -74,7 +80,12 @@ public:
         cmd.target_pitch = target_pitch;
 
         // 开火判断（角度误差 < 2°）
-        double yaw_err = std::abs(target_yaw - current_yaw);
+        // 注意: 使用归一化角度差，避免 yaw 跨越 ±π 边界时误判
+        double yaw_diff = target_yaw - current_yaw;
+        yaw_diff = std::fmod(yaw_diff + M_PI, 2.0 * M_PI);
+        if (yaw_diff < 0) yaw_diff += 2.0 * M_PI;
+        yaw_diff -= M_PI;  // 归一化到 [-π, π]
+        double yaw_err = std::abs(yaw_diff);
         double pitch_err = std::abs(target_pitch - current_pitch);
         const double angle_threshold = 2.0 * M_PI / 180.0;
         cmd.fire = (yaw_err < angle_threshold) && (pitch_err < angle_threshold);

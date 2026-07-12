@@ -148,9 +148,9 @@ def check_student_result(rvec_student, tvec_student, image_points):
     all_pass = t_pass and r_pass and p_pass
     print()
     if all_pass:
-        print("🎉 全部通过！你的 Solver 实现正确。")
+        print("全部通过！你的 Solver 实现正确。")
     else:
-        print("⚠️  存在未通过项，请检查：")
+        print("存在未通过项，请检查：")
         if not t_pass:
             print("  - 平移误差过大：检查 solvePnP 的 tvec 输出是否以米为单位")
         if not r_pass:

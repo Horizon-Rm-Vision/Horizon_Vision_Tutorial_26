@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "../Day6-Tracker/work/my_tracker.hpp"  // TrackResult
+#include "../../Day6-Tracker/work/my_tracker.hpp"  // TrackResult
 #include <Eigen/Dense>
 #include <cmath>
 #include <vector>
@@ -45,17 +45,19 @@ struct Plan {
 //
 // 公式: t = d / (v0 * cos(θ))
 // 其中 θ = atan((v0² - sqrt(v0⁴ - g*(g*d²+2*h*v0²))) / (g*d))
+// 注意: 这是低弹道解（短飞行时间），高弹道解取 +sqrt（飞行时间更长，实战不取）
 // 简化为: t ≈ distance / bullet_speed（近距离近似）
 //
-// ★ 用 python_proto/trajectory_proto.py 可视化弹道曲线辅助理解
+// 用 python_proto/trajectory_proto.py 可视化弹道曲线辅助理解
 // ================================================================
-double compute_fly_time(double bullet_speed, double distance, double height)
+inline double compute_fly_time(double bullet_speed, double distance, double height, double* out_pitch = nullptr)
 {
     // TODO: 实现弹道飞行时间计算（无空气阻力）
     // 公式: 抛物线模型
     //   discriminant = v0⁴ - g*(g*d² + 2*h*v0²)
     //   若 discriminant ≥ 0: tanθ = (v0² - sqrt(discriminant)) / (g*d)
     //                     t = d / (v0 * cosθ)
+    //                     ★ 若 out_pitch 非空，将弹道 pitch 角写入 *out_pitch
     //   否则: 目标超出射程，使用简化 t ≈ d / v0 * 1.05
     //
     // 提示: const double g = 9.81;
@@ -63,6 +65,7 @@ double compute_fly_time(double bullet_speed, double distance, double height)
     
     // === 你的代码开始 ===
     
+    if (out_pitch) *out_pitch = 0.0;  // TODO: 填充弹道补偿后的 pitch 角
     return 0.0;  // TODO: 替换为实际计算
     
     // === 你的代码结束 ===
@@ -82,7 +85,7 @@ double compute_fly_time(double bullet_speed, double distance, double height)
 //
 // 参考: 26_SP tools/trajectory.cpp 中的 kHero 模式
 // ================================================================
-double compute_fly_time_with_drag(double bullet_speed, double distance, 
+inline double compute_fly_time_with_drag(double bullet_speed, double distance, 
                                    double height, double k = 0.001)
 {
     // TODO: 实现带空气阻力的弹道模型（迭代法）
@@ -138,7 +141,7 @@ double compute_fly_time_with_drag(double bullet_speed, double distance,
  * @param horizon 预测时域步数
  * @return        最优控制序列 u_0, u_1, ..., u_{horizon-1}
  */
-std::vector<Eigen::VectorXd> solve_mpc(
+inline std::vector<Eigen::VectorXd> solve_mpc(
     const Eigen::MatrixXd& A, const Eigen::MatrixXd& B,
     const Eigen::MatrixXd& Q, const Eigen::MatrixXd& R,
     const Eigen::VectorXd& x0,
@@ -205,9 +208,14 @@ public:
         // Step 3: 计算瞄准角度
         //   yaw = atan2(predicted_y, predicted_x)
         //   pitch = atan2(predicted_z, sqrt(predicted_x² + predicted_y²))
+        //   注意: 此处 pitch 为纯几何仰角，未补偿重力下坠 ★
+        //   26_SP 使用弹道模型输出 pitch（比几何角大约 0.5°-1°）
         //
         // Step 4: 开火判断
         //   距离 < 6m 时开火（简化策略）
+        //
+        // yaw/omega 字段说明: target.yaw 和 target.omega 来自 EKF 估计，
+        //   Phase 1 暂未使用，Phase 3 MPC 参考轨迹中会用到
         
         // === 你的代码开始 ===
         

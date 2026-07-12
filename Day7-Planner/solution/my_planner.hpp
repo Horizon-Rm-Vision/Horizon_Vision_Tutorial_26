@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "../Day6-Tracker/work/my_tracker.hpp"
+#include "../../Day6-Tracker/work/my_tracker.hpp"
 #include <Eigen/Dense>
 #include <cmath>
 #include <vector>
@@ -29,9 +29,16 @@ struct Plan {
 };
 
 // Task 7-1: 无空气阻力弹道飞行时间
-double compute_fly_time(double bullet_speed, double distance, double height)
+// 公式: 抛物线模型，选择低弹道（短飞行时间）解
+//   discriminant = v0⁴ - g*(g*d² + 2*h*v0²)
+//   tanθ = (v0² - sqrt(discriminant)) / (g*d)   ← 低弹道解（飞行时间更短）
+//   高弹道解为: tanθ = (v0² + sqrt(discriminant)) / (g*d)（飞行时间更长，实战不取）
+//   t = d / (v0 * cosθ)
+// 注: 本教程使用 g=9.81 (标准重力加速度)，26_SP 使用 g=9.7833 (深圳本地实测值)，
+//     对 8m 内射击影响 < 1ms，可忽略。
+inline double compute_fly_time(double bullet_speed, double distance, double height, double* out_pitch = nullptr)
 {
-    const double g = 9.81;
+    const double g = 9.81;  // 标准重力加速度 (26_SP 用 9.7833，深圳实测值)
     double v0 = bullet_speed;
     double d = distance;
     double h = height;
@@ -40,11 +47,14 @@ double compute_fly_time(double bullet_speed, double distance, double height)
     double discriminant = v0_sq * v0_sq - g * (g * d * d + 2 * h * v0_sq);
 
     if (discriminant < 0) {
+        if (out_pitch) *out_pitch = std::atan2(h, d);  // 超出射程，回退到几何仰角
         return d / v0 * 1.05;  // 超出射程，简化估计
     }
 
     double tan_theta = (v0_sq - std::sqrt(discriminant)) / (g * d);
     double theta = std::atan(tan_theta);
+
+    if (out_pitch) *out_pitch = theta;  // 输出弹道补偿后的 pitch 角
 
     if (std::cos(theta) < 1e-6) return d / v0 * 1.05;
 
@@ -53,7 +63,7 @@ double compute_fly_time(double bullet_speed, double distance, double height)
 
 #ifdef PHASE_2_ENABLED
 // Task 7-4: 带空气阻力弹道（迭代数值积分）
-double compute_fly_time_with_drag(double bullet_speed, double distance,
+inline double compute_fly_time_with_drag(double bullet_speed, double distance,
                                    double height, double k = 0.001)
 {
     const double g = 9.81;
@@ -100,7 +110,7 @@ double compute_fly_time_with_drag(double bullet_speed, double distance,
 
 #ifdef PHASE_3_ENABLED
 // Task 7-5: 简化 MPC 求解器（逆向 Riccati + 正向递推）
-std::vector<Eigen::VectorXd> solve_mpc(
+inline std::vector<Eigen::VectorXd> solve_mpc(
     const Eigen::MatrixXd& A, const Eigen::MatrixXd& B,
     const Eigen::MatrixXd& Q, const Eigen::MatrixXd& R,
     const Eigen::VectorXd& x0,
@@ -148,13 +158,16 @@ public:
         Plan result;
         if (!target.valid) return result;
 
-        // Step 1: 飞行时间
+        // Step 1: 飞行时间 + 弹道 pitch 角
         double distance = target.xyz_in_world.norm();
         double height = target.xyz_in_world.z();
+        double ballistic_pitch = 0.0;  // 弹道补偿后的 pitch 角
 #ifdef PHASE_2_ENABLED
         result.fly_time = compute_fly_time_with_drag(bullet_speed_, distance, height);
+        // Phase 2 也支持 out_pitch（需自行扩展函数签名）
+        ballistic_pitch = std::atan2(height, distance);  // fallback: 几何仰角
 #else
-        result.fly_time = compute_fly_time(bullet_speed_, distance, height);
+        result.fly_time = compute_fly_time(bullet_speed_, distance, height, &ballistic_pitch);
 #endif
 
         // Step 2: 预测目标位置
@@ -162,10 +175,12 @@ public:
                                    + target.velocity * result.fly_time;
 
         // Step 3: 瞄准角度
+        // yaw: 纯几何计算（水平面不受重力影响）
         result.yaw = std::atan2(predicted.y(), predicted.x());
-        result.pitch = std::atan2(predicted.z(),
-                                  std::sqrt(predicted.x() * predicted.x()
-                                          + predicted.y() * predicted.y()));
+        // pitch: 使用弹道模型输出的补偿角度（比纯几何仰角大约 0.5°-1°）
+        //   26_SP Planner 使用 Trajectory::pitch 进行弹道补偿
+        //   compute_fly_time() 通过 out_pitch 参数返回该值
+        result.pitch = ballistic_pitch;
 
         // Step 4: 开火判断
         if (distance < 6.0) result.fire = true;

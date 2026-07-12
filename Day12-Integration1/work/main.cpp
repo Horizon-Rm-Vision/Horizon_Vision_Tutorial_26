@@ -1,7 +1,6 @@
 /**
  * Day12-Integration1/work/main.cpp —— 整合主程序（Day12 + Day13）
  *
- * ★★★ 这是整个培训的集大成者 ★★★
  *
  * 本文件整合前 11 天所有产出，只需编写 main() 即可串成完整的自瞄 Pipeline。
  * 所有模块已经通过 #include 引入，你只需要按顺序调用它们。
@@ -114,7 +113,8 @@ int main()
         // ----------------------------------------------------------
         std::list<Armor> armors;
         // auto armors = detector.detect(frame);  // Day2 YOLO 检测
-        // 暂时使用模拟数据
+        // 暂时使用模拟数据（模拟 ~2m 处的一块小装甲板，图像约 640x480）
+        // 坐标顺序需与 armor_types.hpp 一致: {right.top, left.top, left.bottom, right.bottom}
         {
             Armor a;
             a.points = {
@@ -134,8 +134,9 @@ int main()
         // ----------------------------------------------------------
         // Phase 3: 决策（Day7/8）—— Day13 实现
         // ----------------------------------------------------------
-        // auto plan = planner.plan(result, 28.0);  // Day7 MPC
-        // auto cmd  = aimer.aim(result, ...);       // Day8 Aimer
+        // MyPlanner planner(28.0);           // Day7: 构造函数指定弹速
+        // auto plan = planner.plan(result);  // Day7 MPC
+        // auto cmd  = aimer.aim(result);     // Day8 Aimer
 
         // ----------------------------------------------------------
         // Phase 4: 输出（Day13 串口）
@@ -152,7 +153,8 @@ int main()
                 cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.7, 
                 cv::Scalar(0, 255, 0), 2);
             
-            // 绘制预测位置
+            // 绘制预测位置（俯视图：x=前向, y=水平）
+            // (320,240) = 图像中心(假设 640×480), 缩放 50 px/m
             cv::circle(frame, 
                 cv::Point(320 + result.xyz_in_world.x() * 50, 
                          240 - result.xyz_in_world.y() * 50),
@@ -195,8 +197,20 @@ int main()
 // ================================================================
 // Day13 追加内容（取消注释以下代码并补充决策模块）:
 //
-// #include "../../Day7-Planner/work/my_planner.hpp"  // Day7
+// #include "../../Day7-Planner/work/my_planner.hpp"   // Day7
 // // 或 #include "../../Day8-AimerShooter/work/my_aimer.hpp"  // Day8
+// #include "my_gimbal.hpp"                              // Day12 串口封装
+//
+// 然后在 main() 中初始化:
+//   MyPlanner planner(28.0);     // Day7: 构造函数指定弹速
+//   // 或 MyAimer aimer(3.0);    // Day8: 角速度阈值 3 rad/s
+//   // MyGimbal gimbal("/dev/ttyUSB0");  // 或 MockGimbal
+//
+// 主循环中追加:
+//   auto plan = planner.plan(result);  // Day7 MPC 决策
+//   gimbal.send(plan.yaw, plan.pitch, plan.fire);  // 串口输出
+//
+// 详见 Day13-Integration2/work/main.cpp 完整示例。
 //
 // MyPlanner planner(28.0);  // 子弹初速
 //

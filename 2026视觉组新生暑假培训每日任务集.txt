@@ -1,5 +1,5 @@
 ================================================================================
-           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M1
+           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M3
 ================================================================================
 
 说明：
@@ -369,8 +369,7 @@
      c. 图像坐标 → 像素坐标：像素尺度变换
      d. 畸变模型：径向畸变(k1,k2,k3)和切向畸变(p1,p2)
   2. 学习PNP算法原理与OpenCV实现
-     a. 理解PnP(Perspective-n-Point)问题：已知n个3D空间点及其在图像上
-        的2D投影点，求解相机位姿
+     a. 理解PnP问题：已知n个3D空间点及其在图像上的2D投影点，求解相机位姿
      b. 学习cv::solvePnP函数的参数：objectPoints, imagePoints, cameraMatrix,
         distCoeffs, rvec, tvec, useExtrinsicGuess, flags(SOLVEPNP_IPPE等)
      c. 理解旋转向量(rvec)→旋转矩阵→欧拉角的转换关系
@@ -378,12 +377,6 @@
      阅读并透彻理解 tasks/auto_aim/solver.hpp 和 solver.cpp：
      重点理解以下函数及其调用顺序：
      a. solve(Armor & armor)：完整的PnP解算流程
-        - cv::solvePnP → tvec(rvec) → xyz_in_camera
-        - R_camera2gimbal * xyz_in_camera + t_camera2gimbal → xyz_in_gimbal
-        - R_gimbal2world * xyz_in_gimbal → xyz_in_world
-        - rvec → R_armor2camera → R_armor2gimbal → R_armor2world
-        - ypr_in_gimbal / ypr_in_world（欧拉角）
-        - ypd_in_world（yaw-pitch-distance表示）
      b. optimize_yaw(Armor & armor)：利用装甲板重投影误差优化yaw角
      c. armor_reprojection_error()：装甲板重投影误差计算（SJTU方法）
      d. world2pixel()：世界坐标→像素坐标的投影
@@ -418,6 +411,17 @@
    骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
    方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
 
+注意：
+  1.Day1 发布时 my_camera_param.yaml 模板使用了嵌套格式 {rows:, cols:, data: [...]}，
+  而 26_SP 和 Day4 推荐扁平数组格式 [...]。Day4 的 Solver 已内置兼容层，
+  两种格式均可直接加载，无需修改 Day1 标定结果。
+  2.Armor 结构体定义在 Horizon_Vision_Tutorial_26/include/armor_types.hpp，
+  已包含 Solver 输出字段（xyz_in_world 等），Day4 直接 #include 即可使用。
+  3.相机参数匹配：如果使用 Horizon_Rm_Vision_26 assets/demo/demo.avi
+  进行测试（串联 Day2/3），必须加载 configs/demo_camera.yaml 而非 Day1 的
+  my_camera_param.yaml，因为 demo.avi 是由特定相机录制的，内参和畸变系数
+  都不同。用错内参会导致 solvePnP 算出的 xyz_in_world 完全错误。
+
 参考：
   - Horizon_Rm_Vision_26 tasks/auto_aim/solver.cpp 和 solver.hpp
   - Horizon_Rm_Vision_26 configs/camera_param/（相机内参和手眼标定参数示例）
@@ -428,13 +432,7 @@
   - 验证工具: tools/verify_solver.py（自动判断PnP结果是否在容差内）
   - 共享头文件: include/armor_types.hpp（Armor 统一定义，含 Solver 输出字段）
 
-  注意：
-  1.Day1 发布时 my_camera_param.yaml 模板使用了嵌套格式 {rows:, cols:, data: [...]}，
-  而 26_SP 和 Day4 推荐扁平数组格式 [...]。Day4 的 Solver 已内置兼容层，
-  两种格式均可直接加载，无需修改 Day1 标定结果。
-  详见 Day4-Solver/solution/README.md 的「Day1 YAML 格式兼容说明」。
-  2.Armor 结构体定义在 Horizon_Vision_Tutorial_26/include/armor_types.hpp，
-  已包含 Solver 输出字段（xyz_in_world 等），Day4 直接 #include 即可使用。
+
 
 
 ================================================================================
@@ -446,8 +444,7 @@
 说明：
   在Horizon_Rm_Vision_26中，Tracker调用Solver获得装甲板在世界坐标系中的位置后，会将其
   用于初始化或更新Target对象。Target内部维护一个8维EKF（扩展卡尔曼滤波器），
-  状态向量为 [x, vx, y, vy, z, vz, yaw, ω]。本日聚焦于EKF原理和Target类的
-  实现，为Day6的Tracker打下基础。
+  状态向量为 [x, vx, y, vy, z, vz, yaw, ω]。
 
 任务要求：
   1. 系统学习卡尔曼滤波原理
@@ -462,15 +459,18 @@
      d. 理解扩展卡尔曼滤波(EKF)：对非线性系统进行一阶泰勒展开线性化
   2. 深入学习Horizon_Rm_Vision_26的EKF实现
      阅读并理解：
-     a. tools/extended_kalman_filter.hpp —— 通用EKF模板类
-        （支持自定义状态加法/减法函数、支持非线性预测和更新）
+     a. tools/extended_kalman_filter.hpp —— 通用EKF类
+        （26_SP 使用运行时动态维度 Eigen::VectorXd + std::function 注入自定义加减法，
+         支持非线性预测和更新；任务可以简化为编译期模板 template<int N, int M>）
      b. tasks/auto_aim/target.hpp —— Target类
-        （EKF状态向量设计：x, vx, y, vy, z, vz, w, r，共8维+）
+        （26_SP 完整状态向量为 11 维：[center_x, vx, center_y, vy, center_z, vz,
+         yaw, omega, radius, l, h]；任务简化为 8 维：[x, vx, y, vy, z, vz, yaw, ω]）
      c. tasks/auto_aim/target.cpp —— EKF的预测和更新具体实现
         （predict函数、update函数、ypda更新方法）
      重点理解：
      - 状态向量的每一维分别代表什么物理量
-     - 状态转移矩阵F的设计（匀速运动模型/匀速圆周运动模型）
+     - 26_SP 为何额外需要 radius（旋转半径）和 l/h（前哨站多装甲板高度差）
+     - 状态转移矩阵F的设计（匀速运动模型）
      - 观测矩阵H的设计（观测值与状态向量的映射关系）
      - convergened()收敛判断逻辑
   3. 编写一维卡尔曼滤波演示程序
@@ -487,10 +487,10 @@
         应该是什么形状？
      b. 如果要同时估计位置和速度，状态转移矩阵F应该如何设计？（参考
         target.cpp 中匀速运动模型的F矩阵）
-     c. Horizon_Rm_Vision_26的Target类为什么要用8维状态向量（含yaw和ω）而不是只用
-        6维(x,vx,y,vy,z,vz)？多出来的两维有什么作用？
-     （此思考题帮助你从1D EKF过渡到Day6 Tracker中使用的多维EKF）
-  5. ★ 封装可复用EKF模板类（串联Day6）
+     c. Tutorial使用 8 维状态向量 [x,vx,y,vy,z,vz,yaw,ω] 而非仅 6 维
+        [x,vx,y,vy,z,vz]，多出的 yaw 和 ω 有什么作用？26_SP 的
+        Target 实际使用 11 维（额外含 radius, l, h），又增加了什么能力？
+  5. 封装可复用EKF模板类（串联Day6）
      在理解Horizon_Rm_Vision_26的 extended_kalman_filter.hpp 模板设计后，编写一个简化版的
      多维EKF模板类 my_ekf.hpp，要求：
      a. 支持模板参数指定状态维度 N 和观测维度 M（如 template<int N, int M>）
@@ -520,11 +520,11 @@
   - Horizon_Rm_Vision_26 tasks/auto_aim/target.hpp 和 target.cpp
   - 《卡尔曼滤波原理及应用》或网上教程
   - https://www.bzarg.com/p/how-a-kalman-filter-works-in-pictures/
-  - ★ 教程骨架模板: Day5-EKF/work/my_ekf.hpp（EKF<N,M> 模板骨架）
-  - ★ Python原型: Day5-EKF/python_proto/kf_1d_proto.py（1D KF理解原理）
-  - ★ Python原型: Day5-EKF/python_proto/ekf_sim.py（8D EKF仿真验证）
-  - ★ 仿真工具: tools/sim_trajectory.py（生成测试数据）
-  - ★ 绘图工具: tools/plot_compare.py（对比EKF输出与真实轨迹）
+  - 教程骨架模板: Day5-EKF/work/my_ekf.hpp（EKF<N,M> 模板骨架）
+  - Python原型: Day5-EKF/python_proto/kf_1d_proto.py（1D KF理解原理）
+  - Python原型: Day5-EKF/python_proto/ekf_sim.py（8D EKF仿真验证）
+  - 仿真工具: tools/sim_trajectory.py（生成测试数据）
+  - 绘图工具: tools/plot_compare.py（对比EKF输出与真实轨迹）
 
 
 ================================================================================
@@ -537,7 +537,6 @@
   在Horizon_Rm_Vision_26中，Tracker是核心调度者：它接收YOLO检测的Armor列表，调用
   Solver::solve()进行PnP+坐标变换，调用Target(EKF)进行预测和更新，
   并通过状态机管理跟踪生命周期。Tracker是Solver和Target的"调用者"，
-  因此在学完这两者之后再学习Tracker，形成清晰的层级关系。
 
 任务要求：
   1. 学习Horizon_Rm_Vision_26的Tracker模块
@@ -562,7 +561,7 @@
   2. 编写运动轨迹模拟与跟踪预测程序（串联Day4 Solver + Day5 EKF）
      编写C++程序，模拟Tracker的完整工作流：
      a. 模拟一个做匀速圆周运动的装甲板目标（生成3D位置观测数据+噪声）
-     b. ★ 直接 #include Day4 的 "my_solver.hpp" 和 Day5 的 "my_ekf.hpp"
+     b. 直接 #include Day4 的 "my_solver.hpp" 和 Day5 的 "my_ekf.hpp"
         （而非从零实现或使用简化模拟版本），用 my_ekf.hpp 的模板类实例化
         一个 8 维 EKF 对目标进行跟踪
      c. 在跟踪的基础上，实现简单的运动预测：根据当前状态估计预测
@@ -571,7 +570,7 @@
      e. 使用Python/matplotlib绘制四条轨迹的对比曲线
      f. 将核心逻辑封装为 my_tracker.hpp，提供接口：
         `TrackResult track(const std::list<Armor>& armors)`
-        ★ 必须在 my_tracker.hpp 中明确定义 TrackResult 结构体，至少包含：
+        必须在 my_tracker.hpp 中明确定义 TrackResult 结构体，至少包含：
         - xyz_in_world（Eigen::Vector3d，目标世界坐标）
         - velocity（Eigen::Vector3d，目标世界速度，来自EKF状态）
         - yaw（double，目标yaw角，来自EKF状态）
@@ -579,7 +578,7 @@
         - state（int，跟踪状态：LOST=0, DETECTING=1, TRACKING=2, TEMP_LOST=3）
         - valid（bool，当前输出是否有效）
         Day7和Day8的决策模块将直接 #include "my_tracker.hpp" 使用此结构体。
-  3. ★ 接口兼容性验证（确保模块链可串联）
+  3. 接口兼容性验证（确保模块链可串联）
      在编写 my_tracker.hpp 之前，先执行以下验证步骤：
      a. 创建一个简单的 test_compat.cpp，同时 #include Day4 的 "my_solver.hpp"
         和 Day5 的 "my_ekf.hpp"，编译确保无冲突（头文件保护、命名空间等）
@@ -603,12 +602,20 @@
    骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
    方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
 
+注意：
+  1.相机参数匹配：Day6 模拟测试（圆周运动 projectPoints）使用 solver 当前
+  加载的任意一致参数即可（自投影自验证）。但如果进阶尝试用 demo.avi 视频帧
+  作为输入，必须加载 Horizon_Vision_Tutorial_26/configs/demo_camera.yaml
+  而非 Day1 自标定的 my_camera_param.yaml。详见 configs/README.md。
+  
 参考：
   - Horizon_Rm_Vision_26 tasks/auto_aim/tracker.cpp 和 tracker.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/target.cpp 和 target.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/solver.cpp 和 solver.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/aimer.cpp 和 aimer.hpp（浏览了解）
   - ★ 教程骨架模板: Day6-Tracker/work/my_tracker.hpp + test_compat.cpp
+
+
 
 
 ================================================================================
@@ -620,8 +627,7 @@
 说明：
   在Horizon_Rm_Vision_26中，Planner::plan() 函数是一个完整的决策流程：
     弹道模型(fly_time) → 位置预测 → 瞄准点计算 → MPC参考轨迹 → MPC求解 → 输出
-  弹道模型不是独立的步骤，而是Planner内部的第一步（用于计算飞行时间以预测
-  目标未来位置）。本日将弹道模型和MPC合并为一个完整的Planner模块来学习。
+    本日将弹道模型和MPC合并为一个完整的Planner模块来学习。
 
 任务要求：
   1. 学习弹道模型
@@ -653,41 +659,29 @@
      - fire_thresh开火阈值机制
   4. 编写弹道+决策演示程序（联动Day6的Tracker输出）
      编写一个简单的C++程序，模拟Planner的决策流程：
-     a. ★ 直接 #include Day6 的 "my_tracker.hpp"，使用其中定义的 TrackResult
+     a. 直接 #include Day6 的 "my_tracker.hpp"，使用其中定义的 TrackResult
         结构体作为输入类型（而非自己重新定义或使用裸数组）
      b. 构造一组模拟的 TrackResult 数据（模拟Tracker跟踪到的目标状态），
         包含 xyz_in_world、velocity、yaw、omega 等字段
      c. 调用弹道模型计算飞行时间 fly_time
      d. 用匀速模型预测目标在 fly_time 后的位置
      e. 计算目标yaw/pitch角度，输出开火判断
-     f. ★ 将核心逻辑保存为 my_planner.hpp，提供接口：
-        `Plan plan(const TrackResult& target, double bullet_speed)`
+     f. 将核心逻辑保存为 my_planner.hpp，提供接口：
+        `MyPlanner(double bullet_speed)`（构造函数指定子弹初速）
+        `Plan plan(const TrackResult& target)`（输入 TrackResult，输出 Plan）
         由于接口参数使用了 Day6 定义的 TrackResult，在 my_planner.hpp
         中需 #include "my_tracker.hpp"（Day13整合时 my_planner.hpp 和
         my_tracker.hpp 共同编译，无需重复定义数据结构）
-  5. 对比分析
-     对比Horizon_Rm_Vision_26的MPC Planner与2025赛季M5的简单差分+弹道补偿方案，
-     写一份简短的对比分析，说明两种方案的优缺点。
-
-  ★ 本日新增：Python 原型验证 + 渐进 Phase 机制
-    参照 Day4/5 的成功经验，本日提供：
-    - python_proto/trajectory_proto.py —— 弹道曲线可视化（输入初速/距离，
-      绘制抛物线轨迹，直观理解重力补偿）
-    - CMake Phase 2（空气阻力弹道）：实现带空气阻力的英雄弹道模型，
-      使用迭代法求解飞行时间
-    - CMake Phase 3（简化 MPC 求解器）：用 Eigen 实现一个微型 MPC 求解器，
-      输入参考轨迹→输出最优控制序列，与手算结果对比验证
 
 验收内容：
   1. 在Training-26-Summer仓库自己分支下创建"Day7-Planner"文件夹，提交：
      a. trajectory.cpp/hpp 的阅读笔记（弹道模型公式推导）
      b. planner.cpp 和 planner.hpp 的详细阅读笔记（按 plan() 调用链组织）
-     c. MPC vs 传统决策的对比分析文档（markdown）
-     d. 手动推导MPC中yaw通道的状态空间模型（状态变量和控制量的定义、
+     c. 手动推导MPC中yaw通道的状态空间模型（状态变量和控制量的定义、
         状态转移方程），写在markdown中
-     e. 画出 Planner::plan() 的完整流程图（弹道→预测→瞄准→MPC→输出）
-     f. my_planner.hpp 和弹道决策演示程序代码（Day13整合的决策模块）
-     g. （Phase 2+3进阶）空气阻力弹道实现代码 + 简化MPC求解器代码
+     d. 画出 Planner::plan() 的完整流程图（弹道→预测→瞄准→MPC→输出）
+     e. my_planner.hpp 和弹道决策演示程序代码（Day13整合的决策模块）
+     f. （Phase 2+3进阶）空气阻力弹道实现代码 + 简化MPC求解器代码
 
 任务完成方式（二选一）：
    方式A：使用 Horizon_Vision_Tutorial_26/Day7-Planner/work/ 中的
@@ -695,10 +689,10 @@
    方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
 
 参考：
-  - ★ 教程骨架模板: Horizon_Vision_Tutorial_26/Day7-Planner/work/（骨架代码，含TODO标记）
-  - ★ 参考实现: Horizon_Vision_Tutorial_26/Day7-Planner/solution/（完成后对照）
-  - ★ Python原型: Day7-Planner/python_proto/trajectory_proto.py（先用Python理解弹道）
-  - ★ 仿真工具: tools/sim_trajectory.py（生成仿真轨迹数据）
+  - 教程骨架模板: Horizon_Vision_Tutorial_26/Day7-Planner/work/（骨架代码，含TODO标记）
+  - 参考实现: Horizon_Vision_Tutorial_26/Day7-Planner/solution/（完成后对照）
+  - Python原型: Day7-Planner/python_proto/trajectory_proto.py（先用Python理解弹道）
+  - 仿真工具: tools/sim_trajectory.py（生成仿真轨迹数据）
   - Horizon_Rm_Vision_26 tasks/auto_aim/planner/planner.cpp 和 planner.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/planner/tinympc/
   - Horizon_Rm_Vision_26 tools/trajectory.cpp 和 trajectory.hpp
@@ -823,7 +817,7 @@
   可以加深对整体架构的理解。
 
 任务要求：
-  🛠 说明：本日 Tutorial 无骨架代码（work/ 仅含 README.md 引导文档），
+  说明：本日 Tutorial 无骨架代码（work/ 仅含 README.md 引导文档），
     因为大符识别主要依赖 Horizon_Rm_Vision_26 的 auto_buff 模块源码阅读和 demo 运行，
     而非从零编写算法。请重点阅读 Horizon_Rm_Vision_26 tasks/auto_buff/ 下全部源码，
     编译运行 auto_buff_test demo，完成阅读笔记和流程框图。

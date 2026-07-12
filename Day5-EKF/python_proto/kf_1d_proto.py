@@ -6,12 +6,15 @@ lecture5/python_proto/kf_1d_proto.py —— 一维卡尔曼滤波 Python 原型
       Python 优势：快速迭代、即时可视化、易于调参。
 
 用法：
-    python3 kf_1d_proto.py
+    python3 kf_1d_proto.py                    # 生成 kf_1d_obs.csv + 对比曲线图
+    # 运行后 C++ Phase 1 将读取 ../work/kf_1d_obs.csv 做逐帧对比验证
 
 学习路径：
     1. 理解 5 个 KF 核心公式在代码中的对应
     2. 修改 Q 和 R 观察滤波效果变化
-    3. 完成后用 C++ 重现相同逻辑到 my_ekf.hpp
+    3. ★ 先运行本脚本生成 kf_1d_obs.csv，再编译运行 C++ Phase 1
+    4. C++ 读取同一份观测数据，与 Python 输出逐帧对比
+    5. 完成后用 C++ 重现相同逻辑到 my_ekf.hpp
 """
 
 import numpy as np
@@ -135,6 +138,15 @@ def main():
     print(f"  KF Q (pos): {Q}")
     print(f"  KF R:       {R}")
     print(f"  改善比例:   {(1 - pos_rmse / MEASUREMENT_NOISE_STD) * 100:.1f}%")
+
+    # ★ 导出观测 CSV 供 C++ work/main.cpp Phase 1 读取 ★
+    #    这样 C++ 和 Python 使用完全相同的观测数据，可以逐帧对比验证。
+    csv_path = os.path.join(os.path.dirname(__file__), '..', 'work', 'kf_1d_obs.csv')
+    csv_data = np.column_stack([t, measurements, true_pos, true_vel])
+    header = 't,measurement,true_pos,true_vel'
+    np.savetxt(csv_path, csv_data, delimiter=',', header=header, comments='', fmt='%.6f')
+    print(f"观测 CSV 已导出: {os.path.abspath(csv_path)}")
+    print(f"  → C++ Phase 1 将读取此文件进行对比验证")
 
     # 绘图
     fig, axes = plt.subplots(3, 1, figsize=(12, 10))

@@ -19,10 +19,12 @@
  */
 
 // ================================================================
-// ★ 同时引入 Day4 和 Day5 的头文件 ★
+// 同时引入 Day4 和 Day5 的头文件
+// 路径说明：从 Day6-Tracker/work/ 向上两级到 Horizon_Vision_Tutorial_26/，
+//          再进入 Day4-Solver/work/ 和 Day5-EKF/work/
 // ================================================================
-#include "../Day4-Solver/work/my_solver.hpp"
-#include "../Day5-EKF/work/my_ekf.hpp"
+#include "../../Day4-Solver/work/my_solver.hpp"
+#include "../../Day5-EKF/work/my_ekf.hpp"
 
 #include <iostream>
 #include <type_traits>
@@ -99,7 +101,7 @@ int main()
         a.points = {cv::Point2f(0,0), cv::Point2f(1,0), cv::Point2f(1,1), cv::Point2f(0,1)};
         // 以下字段由 Solver::solve() 填充，Tracker 需要读取
         a.xyz_in_world = Eigen::Vector3d(0, 0, 0);
-        a.xyz_in_camera = Eigen::Vector3d(0, 0, 0);
+        a.xyz_in_gimbal = Eigen::Vector3d(0, 0, 0);
         a.ypr_in_world = Eigen::Vector3d(0, 0, 0);
         (void)a;
         std::cout << "[Check 7] Armor 字段完整: ✓" << std::endl;

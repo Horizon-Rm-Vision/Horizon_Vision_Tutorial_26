@@ -1,4 +1,4 @@
-# Lecture 12+13 整合答案
+# Lecture 12 参考答案
 
 ## 核心整合要点
 
@@ -7,6 +7,9 @@
 3. **TrackResult 作为模块间统一数据格式**（Day6 定义 → Day7/8 引用 → Day12/13 使用）
 4. **目录结构镜像 26_SP**：io/ tasks/ tools/ configs/
 
+> **Day13 后续**: 本日完成到 Tracker 输出即可（检测→PnP→EKF 跟踪核心链路）。
+> 弹道+MPC+串口输出的完整 Pipeline 见 Day13-Integration2/solution/README.md。
+
 ## 验证清单
 
 - [ ] 编译通过（所有 #include 路径正确）
@@ -14,9 +17,6 @@
 - [ ] YOLO检测输出 Armor 列表
 - [ ] Solver PnP 解算正常（重投影误差 < 3px）
 - [ ] EKF 跟踪状态正常（收敛到 TRACKING 状态）
-- [ ] Planner/Aimer 输出合理 yaw/pitch
-- [ ] 串口输出格式正确（8字节包）
-- [ ] 自启动脚本可开机运行
 
 ## 常见问题排查
 

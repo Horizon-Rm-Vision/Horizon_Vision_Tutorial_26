@@ -16,12 +16,12 @@
 
 #pragma once
 
-#include "../Day6-Tracker/work/my_tracker.hpp"
+#include "../../Day6-Tracker/work/my_tracker.hpp"
 #include <Eigen/Dense>
 #include <cmath>
 #include <fstream>
 #ifdef PHASE_2_ENABLED
-#include "../Day7-Planner/work/my_planner.hpp"
+#include "../../Day7-Planner/work/my_planner.hpp"
 #endif
 #ifdef PHASE_3_ENABLED
 #include <opencv2/opencv.hpp>
@@ -56,6 +56,13 @@ public:
     // TODO: 根据目标运动方向选择迎面/背离装甲板
     //   迎面(coming): 目标朝我方运动 → 瞄准后装甲板
     //   背离(leaving): 目标远离我方 → 瞄准前装甲板
+    //
+    // 简化说明:
+    //   - 小陀螺判定: 仅用角速度阈值 |ω|>threshold
+    //     (26_SP 完整实现含双重阈值 gyro_speed + gyro_angle)
+    //   - 迎面/背离: 用 dot(xyz, velocity) 简化判定
+    //     (26_SP 使用 comming_angle/leaving_angle 参数)
+    //   - pitch 角: 纯几何仰角，26_SP 使用 Trajectory 补偿重力
     // ============================================================
     AimCommand aim(const TrackResult& target, 
                    double current_yaw, double current_pitch)
@@ -78,6 +85,8 @@ public:
         //   dot(xyz, velocity) < 0 → 迎面 → yaw += π (瞄准后方装甲板)
         //
         // Step 4: 开火判断
+        //   关键: 对 yaw 差做归一化到 [-π, π]，避免跨越 ±π 边界时误判
+        //   yaw_diff = fmod(yaw_diff + π, 2π) - π;  // 归一化角度差
         //   |yaw_err| < 2° 且 |pitch_err| < 2° → fire = true
         
         // === 你的代码开始 ===

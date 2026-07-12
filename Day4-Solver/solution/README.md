@@ -18,18 +18,6 @@
      X (法线方向, 朝向相机)
 ```
 
-## 与 Horizon_Rm_Vision_26 的一致性
-
-| 项目 | Day4-Solver | 26_SP 源码 |
-|------|------------|-----------|
-| 3D 角点坐标系 | YZ 平面, X=0 | ✅ 一致 |
-| YAML 格式 | 扁平数组 `[...]`，兼容 Day1 嵌套格式 | ✅ 一致 |
-| IMU 变换 | `R_gimbal2imubody^T * R_imu * R_gimbal2imubody` | ✅ 一致 |
-| solvePnP flags | `cv::SOLVEPNP_IPPE` | ✅ 一致 |
-| 坐标变换链顺序 | 相机→云台→世界 | ✅ 一致 |
-| 大/小装甲板选择 | 根据 `armor.type` | ✅ 一致 |
-| world2pixel 接口 | `std::vector<cv::Point3f>` → `std::vector<cv::Point2f>` | ✅ 一致 |
-
 ## 自验证通过标准
 
 运行 `./my_solver_test` 后应输出：

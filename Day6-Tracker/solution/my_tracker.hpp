@@ -13,8 +13,8 @@
 
 #pragma once
 
-#include "../Day4-Solver/work/my_solver.hpp"
-#include "../Day5-EKF/work/my_ekf.hpp"
+#include "../../Day4-Solver/work/my_solver.hpp"
+#include "../../Day5-EKF/work/my_ekf.hpp"
 #include <list>
 #include <memory>
 
@@ -46,18 +46,44 @@ public:
     {
         TrackResult result;
 
+        // ── 状态机：处理丢失帧 ──
         if (armors.empty()) {
-            state_ = TrackState::LOST;
-            detect_count_ = 0;
+            if (state_ == TrackState::TRACKING || state_ == TrackState::TEMP_LOST) {
+                temp_lost_count_++;
+                if (temp_lost_count_ > MAX_TEMP_LOST_COUNT) {
+                    state_ = TrackState::LOST;
+                    detect_count_ = 0;
+                    temp_lost_count_ = 0;
+                } else {
+                    state_ = TrackState::TEMP_LOST;
+                    // EKF 纯预测（无观测更新）
+                    const double DT = 0.03;
+                    Eigen::Matrix<double, 8, 8> F = Eigen::Matrix<double, 8, 8>::Identity();
+                    F(0, 1) = DT; F(2, 3) = DT; F(4, 5) = DT; F(6, 7) = DT;
+                    Eigen::Matrix<double, 8, 8> Q = Eigen::Matrix<double, 8, 8>::Identity() * 0.01;
+                    Q(1,1) = Q(3,3) = Q(5,5) = Q(7,7) = 0.1;
+                    ekf_->predict(F, Q);
+                }
+            }
+            // 从 EKF 提取预测结果（即使丢失也输出预测值供决策参考）
+            auto ekf_state = ekf_->get_state();
+            result.xyz_in_world = Eigen::Vector3d(ekf_state(0), ekf_state(2), ekf_state(4));
+            result.velocity = Eigen::Vector3d(ekf_state(1), ekf_state(3), ekf_state(5));
+            result.yaw = ekf_state(6);
+            result.omega = ekf_state(7);
+            result.state = static_cast<int>(state_);
             result.valid = false;
             return result;
         }
 
-        // Step 1: 选择第一个装甲板（简化策略）
-        const Armor& armor = armors.front();
+        // ── 有检测 → 重置丢失计数 ──
+        temp_lost_count_ = 0;
+
+        // Step 1: 选择第一个装甲板（简化策略，拷贝一份避免 const_cast）
+        Armor armor = armors.front();
 
         // Step 2: PnP + 坐标变换
-        solver_.solve(const_cast<Armor&>(armor));
+        solver_.solve(armor);
 
         // Step 3-5: EKF 预测+更新
         const double DT = 0.03;
@@ -82,9 +108,12 @@ public:
         z << armor.xyz_in_world.x(), armor.xyz_in_world.y(), armor.xyz_in_world.z();
         ekf_->update(z, H, R);
 
-        // Step 6: 状态机
+        // Step 6: 状态机（含 TEMP_LOST 恢复）
         detect_count_++;
-        if (detect_count_ >= 3) {
+        if (state_ == TrackState::TEMP_LOST) {
+            // 从短暂丢失中恢复，保持 TRACKING 状态
+            state_ = TrackState::TRACKING;
+        } else if (detect_count_ >= MIN_DETECT_COUNT) {
             state_ = TrackState::TRACKING;
         } else {
             state_ = TrackState::DETECTING;
@@ -97,7 +126,7 @@ public:
         result.yaw = ekf_state(6);
         result.omega = ekf_state(7);
         result.state = static_cast<int>(state_);
-        result.valid = (state_ == TrackState::TRACKING);
+        result.valid = (state_ == TrackState::TRACKING || state_ == TrackState::TEMP_LOST);
 
         return result;
     }
@@ -108,6 +137,10 @@ private:
 
     TrackState state_{TrackState::LOST};
     int detect_count_{0};
+    int temp_lost_count_{0};
+
+    static constexpr int MIN_DETECT_COUNT = 3;     // 连续检测帧数阈值
+    static constexpr int MAX_TEMP_LOST_COUNT = 10;  // 短暂丢失容忍帧数
 };
 
 } // namespace my_auto_aim
