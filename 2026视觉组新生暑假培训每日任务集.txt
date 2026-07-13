@@ -1,5 +1,5 @@
 ================================================================================
-           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M3
+           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M4
 ================================================================================
 
 说明：
@@ -500,6 +500,25 @@
      e. 将 my_ekf.hpp 保存（Day6的 my_tracker.hpp 将直接 #include 并使用
         此EKF模板类进行目标状态估计，无需在Day6从零实现EKF）
 
+  ★附加任务：学习认识Jetson的历史、规格、刷机与软件环境配置
+     本任务限定时间为DAY5和DAY6两天，与DAY5和DAY6的原有任务并行推进，2-3人一组轮流操作同一台演示机
+     学习阅读《Jetson完全指南：选型·刷机·环境配置》全文和其关联文档，重点理解：
+     a. Jetson系列的发展历史和规格对比
+     b. Jetson刷机流程的两个阶段：刷固件阶段 vs 刷软件阶段
+     c. APX模式进入方法（短接FC REC↔GND）
+     d. SDK Manager使用方法
+     e. 命令模式手动刷机的方法
+     f. 在Jetson上配置常用库与软件的方法
+     本日上午正常完成本日主任务EKF的学习，下午我将现场演示一遍流程，接着各组轮流进行实操
+     - 上午以及等待其他组完成本任务期间继续完成本日的EKF任务
+     并且在Jetson教学机上完成以下任务：
+     a.刷写Super模式的JetPack6到NVME硬盘，并刷入完整的软件库
+     b. 按照《Jetson完全指南》完成换源、改中文、修复浏览器等基础软件配置
+     安装常用开发软件，修补CH340串口驱动
+     c. 结合《指南》极其相关文档以及Horizon_Rm_Vision_26的install.md
+     在Jetson上配置Horizon_Rm_Vision_26的所需的完整环境，包括ROS2、OpenVINO等
+     d. 在Jetson上编译运行Horizon_Rm_Vision_26的demo（auto_aim_test）程序，验收运行截图
+
 验收内容：
   1. 在Training-26-Summer仓库自己分支下创建"Day5-EKF"文件夹，提交：
      a. 一维卡尔曼滤波程序的代码
@@ -509,6 +528,16 @@
         重点解释EKF的8维状态向量设计和状态转移矩阵的推导过程
      e. 任务4的思考题回答（markdown，衔接Day4→Day6的关键思考）
      f. my_ekf.hpp（Day6的Tracker将 #include 此文件进行目标状态估计）
+  2. 在Training-26-Summer仓库自己分支下创建"EXTRA-Jetson"文件夹，
+     提交Jetson刷机相关材料，截止时间为明日晚上，与DAY6任务截止时间一致：
+     a. jetson_release 命令输出截图（显示JetPack版本）
+     b. SDK Manager刷机过程中的关键步骤截图（至少2张）
+     c. 刷机完成后的系统OOBE设置界面图片
+     a. 换源后apt update的终端截图
+     b. OpenCV CUDA版编译完成截图（cv2.getBuildInformation()输出含CUDA=YES）
+     c. ROS2 Humble安装完成截图（ros2 --version）
+     d. Horizon_Rm_Vision_26编译通过截图
+     e. Horizon_Rm_Vision_26的demo程序运行结果截图或录像
 
 任务完成方式（二选一）：
    方式A：使用 Horizon_Vision_Tutorial_26/Day5-EKF/work/ 中的
@@ -525,6 +554,10 @@
   - Python原型: Day5-EKF/python_proto/ekf_sim.py（8D EKF仿真验证）
   - 仿真工具: tools/sim_trajectory.py（生成测试数据）
   - 绘图工具: tools/plot_compare.py（对比EKF输出与真实轨迹）
+  - 《Jetson完全指南：选型·刷机·环境配置.md》（必读，刷机前预习全文以及所有相关文章，
+     也包括Horizon_Rm_Vision_26的install.md）
+  - 所有历史文章可以查看之前的群里获得，或者在我的github文档仓库
+    https://github.com/WindowsChicago/RMCV_DOCS里获得所有文章的MarkDown原版
 
 
 ================================================================================
@@ -586,6 +619,24 @@
         一致（参数类型、const 修饰、返回值类型）
      c. 将编译通过的证据（终端截图）一并提交，确保 Day12 整合时不会因接口
         不兼容而卡住
+  ★附加任务：学习认识Jetson的历史、规格、刷机与软件环境配置
+     本任务限定时间为DAY5和DAY6两天，与DAY5和DAY6的原有任务并行推进，2-3人一组轮流操作同一台演示机
+     学习阅读《Jetson完全指南：选型·刷机·环境配置》全文和其关联文档，重点理解：
+     a. Jetson系列的发展历史和规格对比
+     b. Jetson刷机流程的两个阶段：刷固件阶段 vs 刷软件阶段
+     c. APX模式进入方法（短接FC REC↔GND）
+     d. SDK Manager使用方法
+     e. 命令模式手动刷机的方法
+     f. 在Jetson上配置常用库与软件的方法
+     本日在未轮到你的组进行实操时，正常完成本日主任务Tracker的学习，
+     继续在Jetson教学机上完成以下任务：
+     a.刷写Super模式的JetPack6到NVME硬盘，并刷入完整的软件库
+     b. 按照《Jetson完全指南》完成换源、改中文、修复浏览器等基础软件配置
+     安装常用开发软件，修补CH340串口驱动
+     c. 结合《指南》极其相关文档以及Horizon_Rm_Vision_26的install.md
+     在Jetson上配置Horizon_Rm_Vision_26的所需的完整环境，包括ROS2、OpenVINO等
+     d. 在Jetson上编译运行Horizon_Rm_Vision_26的demo（auto_aim_test）程序，验收运行截图
+
 
 验收内容：
   1. 在Training-26-Summer仓库自己分支下创建"Day6-Tracker"文件夹，提交：
@@ -596,26 +647,38 @@
      e. 说明Tracker如何调度Solver和Target（markdown，含函数调用链）
      f. my_tracker.hpp（Day12整合的核心调度者，串联Day2检测+Day4 Solver+Day5 EKF）
      g. test_compat.cpp 的编译通过截图（验证 my_solver.hpp 与 my_ekf.hpp 可共存）
+  2. 在Training-26-Summer仓库自己分支下创建"EXTRA-Jetson"文件夹，
+     提交Jetson刷机相关材料，截止时间和本日任务一致：
+     a. jetson_release 命令输出截图（显示JetPack版本）
+     b. SDK Manager刷机过程中的关键步骤截图（至少2张）
+     c. 刷机完成后的系统OOBE设置界面图片
+     a. 换源后apt update的终端截图
+     b. OpenCV CUDA版编译完成截图（cv2.getBuildInformation()输出含CUDA=YES）
+     c. ROS2 Humble安装完成截图（ros2 --version）
+     d. Horizon_Rm_Vision_26编译通过截图
+     e. Horizon_Rm_Vision_26的demo程序运行结果截图或录像
 
 任务完成方式（二选一）：
    方式A：使用 Horizon_Vision_Tutorial_26/Day6-Tracker/work/ 中的
    骨架工程，在 TODO 标记处填入核心算法，在materials文件夹提交其他内容
    方式B：从零创建 CMake 工程，完全自己搭建，但是也要使用和方式A一样的文件组织方式
 
-注意：
-  1.相机参数匹配：Day6 模拟测试（圆周运动 projectPoints）使用 solver 当前
-  加载的任意一致参数即可（自投影自验证）。但如果进阶尝试用 demo.avi 视频帧
-  作为输入，必须加载 Horizon_Vision_Tutorial_26/configs/demo_camera.yaml
-  而非 Day1 自标定的 my_camera_param.yaml。详见 configs/README.md。
-  
 参考：
   - Horizon_Rm_Vision_26 tasks/auto_aim/tracker.cpp 和 tracker.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/target.cpp 和 target.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/solver.cpp 和 solver.hpp
   - Horizon_Rm_Vision_26 tasks/auto_aim/aimer.cpp 和 aimer.hpp（浏览了解）
   - ★ 教程骨架模板: Day6-Tracker/work/my_tracker.hpp + test_compat.cpp
+  - 《Jetson完全指南：选型·刷机·环境配置.md》（必读，刷机前预习全文以及所有相关文章，
+     也包括Horizon_Rm_Vision_26的install.md）
+  - 所有历史文章可以查看之前的群里获得，或者在我的github文档仓库
+    https://github.com/WindowsChicago/RMCV_DOCS里获得所有文章的MarkDown原版
 
-
+注意：
+  1.★ 相机参数匹配：Day6 模拟测试（圆周运动 projectPoints）使用 solver 当前
+  加载的任意一致参数即可（自投影自验证）。但如果进阶尝试用 demo.avi 视频帧
+  作为输入，必须加载 Horizon_Vision_Tutorial_26/configs/demo_camera.yaml
+  而非 Day1 自标定的 my_camera_param.yaml。详见 configs/README.md。
 
 
 ================================================================================
