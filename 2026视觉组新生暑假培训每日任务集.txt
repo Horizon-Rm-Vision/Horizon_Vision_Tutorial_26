@@ -1,5 +1,5 @@
 ================================================================================
-           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M4
+           2026赛季 Horizon 视觉组 新生暑假留校培训任务集 M5
 ================================================================================
 
 说明：
@@ -415,6 +415,7 @@
   1.Day1 发布时 my_camera_param.yaml 模板使用了嵌套格式 {rows:, cols:, data: [...]}，
   而 26_SP 和 Day4 推荐扁平数组格式 [...]。Day4 的 Solver 已内置兼容层，
   两种格式均可直接加载，无需修改 Day1 标定结果。
+  详见 Day4-Solver/solution/README.md 的「Day1 YAML 格式兼容说明」。
   2.Armor 结构体定义在 Horizon_Vision_Tutorial_26/include/armor_types.hpp，
   已包含 Solver 输出字段（xyz_in_world 等），Day4 直接 #include 即可使用。
   3.相机参数匹配：如果使用 Horizon_Rm_Vision_26 assets/demo/demo.avi
@@ -444,7 +445,8 @@
 说明：
   在Horizon_Rm_Vision_26中，Tracker调用Solver获得装甲板在世界坐标系中的位置后，会将其
   用于初始化或更新Target对象。Target内部维护一个8维EKF（扩展卡尔曼滤波器），
-  状态向量为 [x, vx, y, vy, z, vz, yaw, ω]。
+  状态向量为 [x, vx, y, vy, z, vz, yaw, ω]。本日聚焦于EKF原理和Target类的
+  实现，为Day6的Tracker打下基础。
 
 任务要求：
   1. 系统学习卡尔曼滤波原理
@@ -461,12 +463,12 @@
      阅读并理解：
      a. tools/extended_kalman_filter.hpp —— 通用EKF类
         （26_SP 使用运行时动态维度 Eigen::VectorXd + std::function 注入自定义加减法，
-         支持非线性预测和更新；任务可以简化为编译期模板 template<int N, int M>）
+         支持非线性预测和更新；教程简化为编译期模板 template<int N, int M>）
      b. tasks/auto_aim/target.hpp —— Target类
         （26_SP 完整状态向量为 11 维：[center_x, vx, center_y, vy, center_z, vz,
-         yaw, omega, radius, l, h]；任务简化为 8 维：[x, vx, y, vy, z, vz, yaw, ω]）
+         yaw, omega, radius, l, h]；教程简化为 8 维：[x, vx, y, vy, z, vz, yaw, ω]）
      c. tasks/auto_aim/target.cpp —— EKF的预测和更新具体实现
-        （predict函数、update函数、ypda更新方法）
+        （predict函数、update函数、ypda更新方法，含 Piecewise White Noise Model Q 矩阵）
      重点理解：
      - 状态向量的每一维分别代表什么物理量
      - 26_SP 为何额外需要 radius（旋转半径）和 l/h（前哨站多装甲板高度差）
@@ -487,9 +489,10 @@
         应该是什么形状？
      b. 如果要同时估计位置和速度，状态转移矩阵F应该如何设计？（参考
         target.cpp 中匀速运动模型的F矩阵）
-     c. Tutorial使用 8 维状态向量 [x,vx,y,vy,z,vz,yaw,ω] 而非仅 6 维
+     c. 教程使用 8 维状态向量 [x,vx,y,vy,z,vz,yaw,ω] 而非仅 6 维
         [x,vx,y,vy,z,vz]，多出的 yaw 和 ω 有什么作用？26_SP 的
         Target 实际使用 11 维（额外含 radius, l, h），又增加了什么能力？
+     （此思考题帮助你从1D EKF过渡到Day6 Tracker中使用的多维EKF）
   5. 封装可复用EKF模板类（串联Day6）
      在理解Horizon_Rm_Vision_26的 extended_kalman_filter.hpp 模板设计后，编写一个简化版的
      多维EKF模板类 my_ekf.hpp，要求：
@@ -1319,96 +1322,190 @@
                           暑假自主学习任务
 ================================================================================
 
-以下任务在暑假剩余时间自主完成，开学后将进行综合考核，考核结果将作为
-能否继续留在实验室担任下赛季视觉负责人的重要依据。
+  提交方式：在Training-26-Summer仓库自己分支下创建"Holiday-Tasks"文件夹，
+  按任务编号创建子文件夹提交材料。开学后将对假期任务完成情况进行综合评审。
+  结果将作为能否继续留在实验室以及担任下赛季视觉负责人的重要依据
 
-任务一：C++17/20进阶与设计模式（必修）
-  说明：大家已在寒假系统学习了C++类与对象、继承与多态、运算符重载、
-    I/O异常、模板与STL入门、C++11新特性，基础已经扎实。本任务在此之上
-    向工业级C++进阶。
-  要求：
-    - C++17/20新特性（结构化绑定、std::optional、std::variant、
-      constexpr if、折叠表达式、范围for、std::string_view等）
-    - STL进阶（智能指针unique_ptr/shared_ptr/weak_ptr的适用场景、
-      容器选择策略(map vs unordered_map、vector vs deque)、
-      lambda表达式与std::function、std::atomic原子操作）
-    - 设计模式在Horizon_Rm_Vision_26中的实际应用（策略模式→YOLO后端多态切换、
-      观察者模式→UI更新机制、工厂模式→相机驱动创建、
-      RAII资源管理→Exiter安全退出类）
-    - 阅读Horizon_Rm_Vision_26源码，学习其模块化设计、接口抽象、编译期多态等
-      工业级C++编码风格
-  验收：开学后提交一份C++进阶学习笔记，至少包含：
-    a. 5个在Horizon_Rm_Vision_26源码中发现的C++进阶用法分析（指明文件路径和行号）
-    b. 3个在Horizon_Rm_Vision_26中发现的设计模式应用分析
-    c. 对比自己之前写的代码和Horizon_Rm_Vision_26代码，列出3个可改进的编码习惯
+  资源汇总：
+    - 所有历史文章：https://github.com/WindowsChicago/RMCV_DOCS
+    - 完整培训框架：https://github.com/Horizon-Rm-Vision/Horizon_Vision_Tutorial_26
+    - 26赛季Horizon战队主力通用自瞄框架：https://github.com/Horizon-Rm-Vision/Horizon_Rm_Vision_26
+    - 26赛季Horizon战队RV系ROS自瞄框架：https://github.com/Horizon-Rm-Vision/Horizon_Rm_Vision_26_ROS
+    - 其他学校开源RM视觉框架推荐：
+      同济25：https://github.com/TongjiSuperPower/sp_vision_25
+      中南24：https://github.com/CSU-FYT-Vision/FYT2024_vision
+      武科26：https://github.com/WUST-RM/wust_vision
+      民航26：https://github.com/RM-ITL/Auto_aim
 
-任务二：Python OpenCV视觉算法原型开发（必修）
-  说明：大家已在寒假完成了Python基础学习（已用Python实现C语言大作业+
-    文件存储读取），本任务重点是将Python应用于视觉算法开发。
-  要求：
-    - 学习numpy数组操作和matplotlib数据可视化
-    - 使用Python+OpenCV编写传统视觉装甲板识别程序（完整pipeline：
-      通道分离→二值化→形态学操作→灯条提取→装甲板匹配）
-    - 了解Python在视觉组中的实际应用场景：
-      a. 数据标注工具使用（labelImg/labelme等）
-      b. 算法快速原型验证（Python开发→验证→C++移植）
-      c. 训练脚本编写和数据分析（pandas/matplotlib）
-      d. 串口模拟器（SPSREMU_V10.py）的阅读和理解
-    - 使用Python重现暑假培训期间某个C++算法模块（如PnP解算或EKF），
-      对比两种语言的开发效率和运行效率
-  验收：提交Python版装甲板识别程序代码 + Python版算法模块代码 +
-    C++/Python开发效率对比分析文档
+================================================================================
+  任务A：Horizon_Rm_Vision_26 源码深度研读
+================================================================================
 
-任务三：ROS2进阶——rm_vision框架与Horizon_Rm_Vision_26集成实战（必修，自瞄组）
-  说明：大家已在寒假系统学习了ROS2（节点/话题/服务/自定义msg/colcon/
-    Launch/tf2/URDF），本任务聚焦于ROS2在RM视觉中的实际应用。
   要求：
-    - 在自己的电脑上配置并运行 chenjunnn/rm_vision 项目
-      (GitHub开源RM视觉ROS2框架)，理解其架构设计
-    - 对比 rm_vision 与 Horizon_Rm_Vision_26 的架构差异：
-      a. rm_vision：全ROS2架构，各模块为独立ROS2节点
-      b. Horizon_Rm_Vision_26：ROS2为可选模块，核心算法不依赖ROS2
-      分析两种设计理念的优缺点
-    - 学习如何将Horizon_Rm_Vision_26的ROS2模块（io/ros2/）作为独立ROS2节点运行，
-      理解自瞄与导航解耦的设计思想
-    - （进阶）尝试为Horizon_Rm_Vision_26编写一个新的ROS2节点，实现某个调试功能
-      （如通过ROS2话题远程修改yaml参数、发布Plotter数据等）
-  验收：提交 rm_vision 运行截图 + rm_vision与Horizon_Rm_Vision_26架构对比分析文档 +
-    Horizon_Rm_Vision_26 ROS2模块分析文档
+  1. 工具模块深度研读（3个模块，必须全部完成）
+     a. tools/ransac_sine_fitter.hpp —— RANSAC正弦拟合
+        - 理解RANSAC算法的核心思想（随机采样+一致性检验）
+        - 分析正弦拟合在反陀螺中的应用场景
+        - 阅读源码，画出算法流程图
+     b. tools/extended_kalman_filter.hpp —— 通用EKF（动态维度版）
+        - 理解动态维度设计（Eigen::VectorXd + std::function注入自定义加减法）
+        - 分析Piecewise White Noise Model的Q矩阵推导过程
+        - 与Day5的模板EKF（template<int N, int M>）对比，分析两种设计模式
+          （运行期多态 vs 编译期多态）的优劣和适用场景
+     c. tools/recorder.hpp/cpp —— 内录与回放系统
+        - 理解录制数据的格式和存储方式（图像+电控数据的时间戳对齐）
+        - 分析回放时的时序同步机制
+        - 实操：使用Recorder录制一段auto_aim_test的运行数据，离线回放分析
 
-任务四：YOLO模型轻量化与优化（必修）
-  要求：
-    - 学习YOLO模型的轻量化技术（剪枝、量化、知识蒸馏等）
-    - 使用Horizon_Rm_Vision_26 assets/ 中的现有模型（如 yolov5a-0708.onnx 或
-      yolo11_buff_int8.xml）进行INT8量化对比实验，理解量化原理
-    - 使用TensorRT/OpenVINO对量化前后的模型进行推理速度对比
-    - 了解模型部署到Jetson Orin等嵌入式计算平台的注意事项
-  验收：提交基于Horizon_Rm_Vision_26现有模型的量化前后推理速度对比数据和分析文档
+  2. IO模块深度研读
+     a. io/camera.cpp/hpp —— 相机抽象层
+        - 分析多态设计：如何通过工厂模式统一多种相机驱动（大恒/迈德/海康/USB）
+        - 理解热插拔检测的实现机制
 
-任务五：反陀螺(anti-spin)学习（必修）
-  要求：
-    - 学习各种反陀螺自瞄方案的原理
-    - 阅读Horizon_Rm_Vision_26中aimer的锁中心模式和小陀螺判定逻辑
-    - 阅读tools/ransac_sine_fitter.hpp（RANSAC正弦拟合器，用于
-      估计敌方旋转频率）
-    - 对比其他学校开源的反陀螺方案，写一份对比分析
-  验收：提交反陀螺方案对比分析文档（至少对比3种不同方案）
+  3. 多线程与并发架构分析
+     a. 阅读 tasks/auto_aim/multithread/ 下的源码
+     b. 分析 auto_aim_debug_mpc.cpp 中主线程（采集+检测+跟踪+UI）与
+        规划线程（Planner::plan）的同步机制
+     c. 理解线程安全队列（thread_safe_queue）、原子操作、CPU亲和性绑定的实际应用
+     d. 绘制完整的线程时序图（含锁竞争点和数据流向）
 
-任务六：电控与机械基础知识（必修）
-  要求：
-    - 了解云台的基本结构（yaw轴/pitch轴/发射机构）
-    - 了解电控常用的通信协议（CAN总线、串口通信）
-    - 理解电控发送给视觉的数据（云台角度、角速度、弹速、模式等）
-      各自的物理含义和用途
-    - 了解PID控制的基本概念及其在云台控制中的应用
-  验收：提交学习笔记
+  验收材料（提交到 Holiday-Tasks/TaskA/）：
+    a. 深度研读笔记（markdown，每个模块至少2000字）
+    b. 绘制的算法流程图或架构图（RANSAC流程图、线程时序图等）
+    c. 对Horizon_Rm_Vision_26代码的改进建议（至少3条，含理由和实现思路）
+    d. Recorder录制回放的运行截图
 
-任务七：Git进阶与团队协作（必修）
+
+================================================================================
+  任务B：基于ROS2的自瞄框架项目对比学习
+================================================================================
+
   要求：
-    - 在暑假期间，视觉组代码仓库建立后，学习使用Git进行团队协作
-    - 掌握分支管理策略（Git Flow或GitHub Flow）
-    - 掌握代码审查(Code Review)的基本方法
-    - 了解CI/CD的基本概念
+    a. 在自己的电脑上配置并运行 Horizon_Rm_Vision_26_ROS 项目
+       (https://github.com/Horizon-Rm-Vision/Horizon_Rm_Vision_26_ROS)，理解其架构设计
+    b. 对比 Horizon_Rm_Vision_26_ROS 与 Horizon_Rm_Vision_26 的架构差异：
+       Horizon_Rm_Vision_26_ROS 基于 rm_vision 项目，为全 ROS2 架构，各模块为独立 ROS2 节点；
+       而 Horizon_Rm_Vision_26 为普通 C++ 程序结构，ROS2 为可选模块，核心算法不依赖 ROS2。
+       分析两种设计理念的优缺点。
+    c. （可选）尝试为 Horizon_Rm_Vision_26 编写一个新的 ROS2 节点，实现某个调试功能
+       （如通过 ROS2 话题远程修改 yaml 参数、发布 Plotter 数据等）
+
+  验收材料（提交到 Holiday-Tasks/TaskB/）：
+    a. Horizon_Rm_Vision_26_ROS 运行截图
+    b. Horizon_Rm_Vision_26_ROS 与 Horizon_Rm_Vision_26 架构对比分析文档（markdown）
+    c. （可选）新编写的 ROS2 节点代码及运行截图
+
+
+
+================================================================================
+  任务C：C++17/20进阶与设计模式
+================================================================================
+
+  要求：
+  - C++17/20新特性学习：
+    a. 结构化绑定（结构化绑定）：阅读Horizon_Rm_Vision_26中哪些地方可以用
+    b. std::optional：替代函数返回值中的"无效"标志
+    c. std::variant：替代union或enum+switch的模式
+    d. constexpr if：编译期条件分支
+    e. 折叠表达式：变参模板简化
+    f. std::string_view：零拷贝字符串引用
+  - STL进阶：
+    a. 智能指针在Horizon_Rm_Vision_26中的实际使用场景分析
+    b. 容器选择策略：什么时候用map vs unordered_map？vector vs deque？
+    c. lambda表达式与std::function在回调机制中的应用
+    d. std::atomic与无锁编程基础
+  - 设计模式在Horizon_Rm_Vision_26中的实际应用：
+    a. 策略模式 → YOLO后端多态切换（yolo.cpp中通过yaml配置选择后端）
+    b. 观察者模式 → UI更新机制（UIManager订阅数据更新）
+    c. 工厂模式 → 相机驱动创建（Camera类根据yaml配置创建不同品牌相机）
+    d. RAII资源管理 → Exiter安全退出类、trt_engine的buffer管理
+    e. 单例模式 → Logger日志系统
+    f. 模板方法模式 → EKF的predict/update框架
+
+  验收材料（提交到 Holiday-Tasks/TaskC/）：
+    a. C++进阶学习笔记（markdown），至少包含：
+      - 5个在Horizon_Rm_Vision_26源码中发现的C++17/20用法分析（指明文件路径和行号）
+      - 3个在Horizon_Rm_Vision_26中发现的设计模式应用分析
+      - 对比自己之前写的代码和Horizon_Rm_Vision_26代码，列出3个可改进的编码习惯
+
+
+================================================================================
+  任务D：Python OpenCV 视觉算法原型开发
+================================================================================
+
+  要求：
+  - 深入学习了解Python与Conda虚拟环境，熟练掌握conda和pip的使用
+  - 了解Python在视觉组中的实际应用场景：
+    a. 数据标注工具使用（labelImg/labelme等）
+    b. 训练脚本编写和数据分析（pandas/matplotlib）
+    c. 网络调试器（web_ui_receiver）的阅读和理解
+  - 使用Python + OpenCV编写一个简单的实时视频处理程序，
+    调用Horizon_Rm_Vision_26的ONNX模型进行推理，实现"Python版自瞄原型"
+  - 参考RMCV_DOCS里的"OpenVINO xml模型反转回onnx教程.md"
+    配置虚拟环境并尝试将Horizon_Rm_Vision_26的"yolov5.xml"反转回onnx
+
+  验收材料（提交到 Holiday-Tasks/TaskD/）：
+    a. Python版自瞄原型运行截图
+    b. 反转过程的截图和得到的onnx文件
+
+
+================================================================================
+  任务E：电控与机械基础知识拓展
+================================================================================
+
+  要求：
+  - 了解云台的基本结构（yaw轴/pitch轴/发射机构）
+  - 了解电控常用的通信协议（CAN总线、串口通信）
+  - 理解电控发送给视觉的数据（云台角度、角速度、弹速、模式等）
+    各自的物理含义和用途
+  - 了解PID控制的基本概念及其在云台控制中的应用
+  - 了解机械结构对视觉的影响（相机安装位置、减震、散热等）
+
+  验收材料（提交到 Holiday-Tasks/TaskE/）：
+    a. 学习笔记（markdown，附带手绘或工具绘制的示意图）
+
+
+================================================================================
+  任务F：Git进阶与团队协作规范
+================================================================================
+
+  要求：
+  - 掌握分支管理策略，熟练掌握git和github的各种操作，
+    开学后将会让你加入开发组github组织，务必掌握github合作开发方法
+  - 了解CI/CD的基本概念：
+    a. GitHub Actions的基本配置
+    b. 自动化编译检查、代码格式化检查
+
+  验收材料（提交到 Holiday-Tasks/TaskF/）：
+    a. Git工作流学习笔记
+
+
+================================================================================
+  任务G：YOLO模型轻量化与优化
+================================================================================
+
+  要求：
+  - 学习YOLO模型的轻量化技术体系：
+    a. 量化（Quantization）：回顾 Day2 的 FP16 量化
+    b. 模型剪枝（Pruning）
+       - 学习结构化剪枝 vs 非结构化剪枝的区别
+       - 了解Channel Pruning / Layer Pruning 的原理
+       - 尝试使用开源工具（如 torch-pruning / nn_pruning）对YOLO模型进行剪枝
+    c. 蒸馏（Distillation）
+       - 学习教师-学生框架的基本原理
+       - 了解软标签（Soft Label）和温度系数（Temperature）的作用
+       - 尝试实现简单的蒸馏训练流程（教师模型→学生模型）
+  - 了解模型部署到Jetson Orin等嵌入式计算平台的注意事项
+
+  验收材料（提交到 Holiday-Tasks/TaskG/）：
+    a. 剪枝学习笔记 
+    b. 知识蒸馏学习笔记 
+    c. 其他常见的模型轻量化技术总结文档（markdown格式）
+
+假期期间我会不定期上传新文章以及更新Horizon_Rm_Vision_26项目
+务必及时阅读学习新文档和关注代码改进日志
+
+
 
 ================================================================================
                               附 录
